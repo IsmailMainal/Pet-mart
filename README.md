@@ -84,41 +84,44 @@ Pets Mart ERP is a multi-role business management platform for a pet clinic and 
 ```
 PET/
 ├── backend/
-│   ├── config/
-│   │   └── database.js          # Sequelize connection
-│   ├── controllers/
-│   │   ├── authController.js
-│   │   ├── couponController.js
-│   │   ├── dashboardController.js
-│   │   ├── invoiceController.js
-│   │   ├── productController.js
-│   │   ├── appointmentController.js
-│   │   ├── generalController.js  # Services & Doctors
-│   │   └── logController.js
-│   ├── middleware/
-│   │   ├── auth.js               # JWT authenticate + authorize
-│   │   ├── upload.js             # Multer config
-│   │   └── validate.js           # Zod validation middleware
-│   ├── models/
-│   │   ├── index.js              # Associations hub
-│   │   ├── User.js
-│   │   ├── Product.js / ProductImage.js
-│   │   ├── Appointment.js
-│   │   ├── Invoice.js / InvoiceItem.js
-│   │   ├── Service.js / Doctor.js
-│   │   ├── Coupon.js
-│   │   └── ActivityLog.js
-│   ├── routes/
-│   │   └── index.js              # All API routes
-│   ├── utils/
-│   │   ├── schemas.js            # Zod validation schemas
-│   │   ├── logger.js             # Activity log helper
-│   │   └── catchAsync.js         # Async error wrapper
-│   ├── uploads/                  # Uploaded product images
-│   ├── migrate-invoices.js       # DB migration: Invoice columns
-│   ├── migrate-invoice-items.js  # DB migration: InvoiceItem columns
-│   ├── server.js                 # Express app entry point
-│   └── .env.example
+│    ├── config/
+    │   ├── database.js          # Main Sequelize connection
+    │   └── config.js            # Sequelize CLI configuration
+    ├── migrations/              # DB migration files (Sequelize CLI)
+    ├── seeders/                 # DB seed files
+    ├── controllers/
+    │   ├── authController.js
+    │   ├── couponController.js
+    │   ├── dashboardController.js
+    │   ├── invoiceController.js
+    │   ├── productController.js
+    │   ├── appointmentController.js
+    │   ├── generalController.js  # Services & Doctors
+    │   └── logController.js
+    ├── middleware/
+    │   ├── auth.js               # JWT authenticate + authorize
+    │   ├── upload.js             # Multer config
+    │   └── validate.js           # Zod validation middleware
+    ├── models/
+    │   ├── index.js              # Associations hub
+    │   ├── User.js
+    │   ├── Product.js / ProductImage.js
+    │   ├── Appointment.js
+    │   ├── Invoice.js / InvoiceItem.js
+    │   ├── Service.js / Doctor.js
+    │   ├── Coupon.js
+    │   └── ActivityLog.js
+    ├── routes/
+    │   └── index.js              # All API routes
+    ├── utils/
+    │   ├── schemas.js            # Zod validation schemas
+    │   ├── logger.js             # Activity log helper
+    │   └── catchAsync.js         # Async error wrapper
+    ├── uploads/                  # Uploaded product images
+    ├── db-create.js              # Script to ensure DB exists
+    ├── server.js                 # Express app entry point
+    ├── .sequelizerc              # Sequelize CLI path config
+    └── .env.example
 │
 └── frontend/
     ├── src/
@@ -183,11 +186,12 @@ Copy the environment file and fill in your values:
 cp .env.example .env
 ```
 
-Run database migrations (first time only):
+Run database setup (first time only):
 
 ```bash
-node migrate-invoices.js
-node migrate-invoice-items.js
+# Create database and run migrations
+npm run db:create
+npm run db:migrate
 ```
 
 Start the backend:
@@ -243,17 +247,17 @@ CLIENT_URL=http://localhost:5173
 
 ## 🗃 Database Setup & Migrations
 
-Sequelize auto-syncs **new tables** on startup. For columns added to existing tables, run the migration scripts manually:
+The project uses **Sequelize CLI** for robust database management.
 
-```bash
-# Adds: discountAmount, discountType, couponCode, paymentMode, utrNumber to Invoices
-node migrate-invoices.js
+### Commands
 
-# Adds: serviceId to InvoiceItems
-node migrate-invoice-items.js
-```
+| Task | Command |
+|---|---|
+| **Create Database** | `npm run db:create` |
+| **Run Migrations** | `npm run db:migrate` |
+| **Undo Migration** | `npm run db:migrate:undo` |
 
-> ⚠️ These scripts are safe to run multiple times — they skip columns that already exist.
+> 💡 **Tip**: Migrations are safe to run multiple times. They will only apply changes that aren't already present in your database.
 
 ---
 
