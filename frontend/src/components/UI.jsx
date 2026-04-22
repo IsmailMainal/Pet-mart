@@ -210,3 +210,41 @@ export const SearchBar = ({ value, onChange, placeholder = 'Search...' }) => (
     />
   </div>
 );
+
+// ── Pagination ──────────────────────────────────────────────────────────────
+export const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+  if (totalPages <= 1) return null;
+
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const visiblePages = pages.filter(p => p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1));
+
+  return (
+    <div className="flex items-center justify-center gap-2 mt-8 pb-4">
+      <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>
+        Prev
+      </Button>
+      
+      {visiblePages.map((p, i) => {
+        const showEllipsis = i > 0 && p !== visiblePages[i - 1] + 1;
+        return (
+          <React.Fragment key={p}>
+            {showEllipsis && <span className="text-stone-300">...</span>}
+            <button
+              onClick={() => onPageChange(p)}
+              className={`w-8 h-8 rounded-lg text-sm font-bold transition-all
+                ${currentPage === p 
+                  ? 'bg-lime-700 text-white' 
+                  : 'text-stone-500 hover:bg-stone-100'}`}
+            >
+              {p}
+            </button>
+          </React.Fragment>
+        );
+      })}
+
+      <Button variant="outline" size="sm" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>
+        Next
+      </Button>
+    </div>
+  );
+};

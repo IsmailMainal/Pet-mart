@@ -41,7 +41,6 @@ exports.createAppointment = catchAsync(async (req, res, next) => {
 
 exports.updateAppointment = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  console.log(`[DEBUG] Attempting to update appointment ${id} with body:`, req.body);
   
   const appointment = await Appointment.findByPk(id);
   if (!appointment) {
@@ -65,11 +64,23 @@ exports.updateAppointment = catchAsync(async (req, res, next) => {
     
     logActivity(req.user.id, 'update', 'Appointment', appointment.id, `Updated appointment status to ${req.body.status || appointment.status}`);
     
-    console.log(`[DEBUG] Appointment ${id} updated successfully`);
     res.json(appointment);
   } catch (err) {
-    console.error(`[DEBUG] Update failed for appointment ${id}:`, err);
-    // If it's a Sequelize validation error, it will be caught by the global error handler
-    throw err;
+    next(err);
   }
+});
+
+exports.deleteAppointment = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const appointment = await Appointment.findByPk(id);
+  if (!appointment) return res.status(404).json({ error: 'Appointment not found' });
+
+  // Security: Customers can only delete their own appointments
+  if (req.user.role === 'customer' && appointment.userId !== req.user.id) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+
+  await appointment.destroy();
+  logActivity(req.user.id, 'delete', 'Appointment', id, `Deleted appointment for user ID ${appointment.userId}`);
+  res.json({ message: 'Appointment deleted' });
 });

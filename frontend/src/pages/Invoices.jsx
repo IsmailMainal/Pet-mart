@@ -6,10 +6,11 @@ import {
   Button, Card, Modal, ConfirmModal,
   PageHeader, SearchBar, Badge, EmptyState, Skeleton
 } from '../components/UI';
-import { Plus, Printer, Package, ShoppingCart, Banknote, Smartphone, TrendingUp, FileText, AlertTriangle } from 'lucide-react';
+import { Plus, Printer, Package, ShoppingCart, Banknote, Smartphone, TrendingUp, FileText, AlertTriangle, Pencil } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import InvoiceForm from '../components/Invoice/InvoiceForm';
+import { formatDate, formatCurrency } from '../utils/format';
 import InvoiceDetailDrawer from '../components/Invoice/InvoiceDetailDrawer';
 
 const STATUS_COLORS = { Paid: 'green', Draft: 'amber', Cancelled: 'red' };
@@ -29,6 +30,7 @@ const Invoices = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [editInvoice, setEditInvoice] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { data: invoices = [], isLoading } = useQuery({
@@ -85,7 +87,7 @@ const Invoices = () => {
       <PageHeader
         title="Invoices & Inventory"
         description="Billing workflow with automatic stock management"
-        action={<Button onClick={() => setIsModalOpen(true)}><Plus size={16} /> Create Invoice</Button>}
+        action={<Button onClick={() => { setEditInvoice(null); setIsModalOpen(true); }}><Plus size={16} /> Create Invoice</Button>}
       />
 
       {/* KPI Summary Bar */}
@@ -210,6 +212,10 @@ const Invoices = () => {
                           className="bg-stone-100 hover:bg-lime-700 hover:text-white text-stone-600 p-2 rounded-lg transition-all">
                           <Printer size={14} />
                         </Link>
+                        <button onClick={() => { setEditInvoice(inv); setIsModalOpen(true); }}
+                          className="bg-stone-100 hover:bg-blue-600 hover:text-white text-stone-600 p-2 rounded-lg transition-all">
+                          <Pencil size={14} />
+                        </button>
                         {inv.status === 'Draft' && (
                           <button onClick={() => setDeleteTarget(inv)}
                             className="bg-stone-100 hover:bg-red-500 hover:text-white text-stone-400 p-2 rounded-lg transition-all">
@@ -226,9 +232,9 @@ const Invoices = () => {
         </Card>
       )}
 
-      {/* Create Invoice Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Generate Invoice & Update Inventory" maxWidth="max-w-2xl">
-        <InvoiceForm onClose={() => setIsModalOpen(false)} />
+      {/* Create/Edit Invoice Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditInvoice(null); }} title={editInvoice ? `Edit Invoice ${editInvoice.invoiceNumber}` : "Generate Invoice & Update Inventory"} maxWidth="max-w-2xl">
+        <InvoiceForm invoice={editInvoice} onClose={() => { setIsModalOpen(false); setEditInvoice(null); }} />
       </Modal>
 
       {/* Invoice Detail Drawer */}

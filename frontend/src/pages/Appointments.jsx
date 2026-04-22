@@ -3,8 +3,9 @@ import api from '../api';
 import { AuthContext } from '../AuthContext';
 import { useToast } from '../components/Toast';
 import { Button, Card, Input, Textarea, Select, Modal, ConfirmModal, PageHeader, SearchBar, Badge, EmptyState, Skeleton, useLoadingMessage } from '../components/UI';
-import { Plus, Calendar, Clock, User, Stethoscope, FileText } from 'lucide-react';
+import { Plus, Calendar, Clock, User, Stethoscope, FileText, Trash2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { formatDate } from '../utils/format';
 
 const STATUS_COLORS = {
   Pending: 'amber', Confirmed: 'blue', Completed: 'green', Cancelled: 'red'
@@ -48,7 +49,7 @@ const AppointmentDetail = ({ apt, onClose, canEdit, onStatusChange }) => {
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-stone-50 rounded-xl p-3">
             <div className="flex items-center gap-1.5 text-stone-400 text-xs mb-1"><Calendar size={12} /> Date</div>
-            <p className="font-semibold text-stone-800 text-sm">{new Date(apt.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })}</p>
+            <p className="font-semibold text-stone-800 text-sm">{formatDate(apt.date)}</p>
           </div>
           <div className="bg-stone-50 rounded-xl p-3">
             <div className="flex items-center gap-1.5 text-stone-400 text-xs mb-1"><Clock size={12} /> Time</div>
@@ -82,8 +83,7 @@ const AppointmentDetail = ({ apt, onClose, canEdit, onStatusChange }) => {
                   className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all
                     ${apt.status === s
                       ? 'bg-lime-700 text-white border-lime-700'
-                    : 'bg-white border-stone-200 text-stone-600 hover:border-lime-400 hover:text-lime-700'}
-                    ${!isStaff && s !== 'Cancelled' ? 'hidden' : ''}`}>
+                    : 'bg-white border-stone-200 text-stone-600 hover:border-lime-400 hover:text-lime-700'}`}>
                   {s}
                 </button>
               ))}
@@ -99,7 +99,8 @@ const AppointmentDetail = ({ apt, onClose, canEdit, onStatusChange }) => {
 const BookForm = ({ doctors, onClose }) => {
   const toast = useToast();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState({ doctorId: doctors[0]?.id || '', date: '', time: '', reason: '' });
+  const doctorsArr = Array.isArray(doctors) ? doctors : [];
+  const [form, setForm] = useState({ doctorId: doctorsArr[0]?.id || '', date: '', time: '', reason: '' });
   const loadingMsg = useLoadingMessage();
 
   const mutation = useMutation({
@@ -121,7 +122,7 @@ const BookForm = ({ doctors, onClose }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Select label="Select Doctor" value={form.doctorId} onChange={e => setForm({...form, doctorId: e.target.value})} required>
-        {doctors.map(d => <option key={d.id} value={d.id}>{d.name} – {d.specialization}</option>)}
+        {doctorsArr.map(d => <option key={d.id} value={d.id}>{d.name} – {d.specialization}</option>)}
       </Select>
       <div className="grid grid-cols-2 gap-4">
         <Input label="Date" type="date" required value={form.date} onChange={e => setForm({...form, date: e.target.value})} min={new Date().toISOString().split('T')[0]} />
@@ -139,6 +140,12 @@ const BookForm = ({ doctors, onClose }) => {
 // ── Main ──────────────────────────────────────────────────────────────────────
 const Appointments = () => {
   const { user } = useContext(AuthContext);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [bookOpen, setBookOpen] = useState(false);
+  const [detailApt, setDetailApt] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
   const toast = useToast();
   const queryClient = useQueryClient();
   const isStaff = user?.role !== 'customer';
@@ -171,14 +178,20 @@ const Appointments = () => {
     onError: () => toast('error', 'Update failed')
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/appointments/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      toast('success', 'Appointment deleted');
+      setDeleteTarget(null);
+    }
+  });
+
   const updateStatus = (id, status) => statusMutation.mutate({ id, status });
 
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [bookOpen, setBookOpen] = useState(false);
-  const [detailApt, setDetailApt] = useState(null);
-
-  const filtered = appointments.filter(a => {
+  const appointmentsArr = Array.isArray(appointments) ? appointments : [];
+  const filtered = appointmentsArr.filter(a => {
     const matchSearch = (a.customer?.name || '').toLowerCase().includes(search.toLowerCase())
       || (a.Doctor?.name || '').toLowerCase().includes(search.toLowerCase())
       || (a.reason || '').toLowerCase().includes(search.toLowerCase());
@@ -190,7 +203,7 @@ const Appointments = () => {
     <div>
       <PageHeader
         title="Appointments"
-        description={`${appointments.length} total appointments`}
+        description={`${appointmentsArr.length} total appointments`}
         action={user?.role === 'customer' && (
           <Button onClick={() => setBookOpen(true)}><Plus size={16} /> Book Appointment</Button>
         )}
@@ -246,7 +259,7 @@ const Appointments = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-stone-800 font-medium">
                         <Calendar size={14} className="text-lime-600 shrink-0" />
-                        {new Date(apt.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {formatDate(apt.date)}
                       </div>
                       <div className="flex items-center gap-2 text-stone-400 text-xs mt-1">
                         <Clock size={12} />{apt.time}
@@ -260,7 +273,17 @@ const Appointments = () => {
                     <td className="px-6 py-4 text-stone-500 hidden md:table-cell max-w-xs truncate">{apt.reason || '—'}</td>
                     <td className="px-6 py-4"><StatusBadge status={apt.status} /></td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-xs text-lime-700 hover:underline font-semibold">View →</button>
+                      <div className="flex items-center justify-end gap-3">
+                        <button onClick={(e) => { e.stopPropagation(); setDetailApt(apt); }} className="text-xs text-lime-700 hover:underline font-semibold">View</button>
+                        {isStaff && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); setDeleteTarget(apt); }}
+                            className="text-stone-300 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -280,6 +303,16 @@ const Appointments = () => {
         onClose={() => setDetailApt(null)}
         canEdit={isStaff || detailApt?.userId === user?.id}
         onStatusChange={updateStatus}
+      />
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+        title="Delete Appointment"
+        message={`Are you sure you want to delete the appointment for "${deleteTarget?.customer?.name || 'this customer'}" on ${deleteTarget?.date}?`}
+        confirmLabel="Delete"
+        confirmVariant="danger"
       />
     </div>
   );

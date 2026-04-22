@@ -28,6 +28,13 @@ const errorHandler = (err, req, res, next) => {
       message: err.errors.map(e => e.message).join(', ')
     });
   }
+  // Multer Errors
+  if (err.name === 'MulterError' || err.message === 'Only images are allowed!') {
+    return res.status(400).json({
+      error: 'Upload failed',
+      message: err.message
+    });
+  }
 
   // Default Error
   const statusCode = err.statusCode || 500;

@@ -4,7 +4,7 @@ import { AuthContext } from '../AuthContext';
 import { useToast } from '../components/Toast';
 import {
   Button, Card, Input, Textarea, Modal, ConfirmModal,
-  PageHeader, SearchBar, Badge, EmptyState, Skeleton
+  PageHeader, SearchBar, Badge, EmptyState, Skeleton, Pagination
 } from '../components/UI';
 import { Plus, Pencil, Trash2, Heart, Activity, Stethoscope, Scissors } from 'lucide-react';
 
@@ -30,17 +30,21 @@ const Services = () => {
 
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [meta, setMeta] = useState({ totalCount: 0, totalPages: 1, currentPage: 1 });
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [formData, setFormData] = useState({ name: '', description: '', price: '' });
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const fetchServices = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/services');
-      setServices(res.data);
+      const res = await api.get(`/services?page=${page}&search=${search}`);
+      setServices(res.data.services || []);
+      setMeta(res.data.meta || { totalCount: 0, totalPages: 1, currentPage: 1 });
     } catch {
       toast('error', 'Failed to load services');
     } finally {
@@ -48,7 +52,12 @@ const Services = () => {
     }
   };
 
-  useEffect(() => { fetchServices(); }, []);
+  useEffect(() => {
+    const delayDebounce = setTimeout(() => {
+      fetchServices();
+    }, 300);
+    return () => clearTimeout(delayDebounce);
+  }, [page, search]);
 
   const openCreate = () => { setEditingService(null); setFormData({ name: '', description: '', price: '' }); setFormOpen(true); };
   const openEdit = (s) => { setEditingService(s); setFormData({ name: s.name, description: s.description, price: s.price }); setFormOpen(true); };
@@ -73,21 +82,27 @@ const Services = () => {
     }
   };
 
-  const filtered = (Array.isArray(services) ? services : []).filter(s => 
-    (s.name || '').toLowerCase().includes(search.toLowerCase()) || 
-    (s.description || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/services/${deleteTarget.id}`);
+      toast('success', 'Service deleted');
+      setDeleteTarget(null);
+      fetchServices();
+    } catch {
+      toast('error', 'Delete failed');
+    }
+  };
 
   return (
     <div>
       <PageHeader
         title="Veterinary Services"
-        description="Manage clinical and grooming services"
+        description={`${meta?.totalCount || 0} clinical and grooming services`}
         action={isAdmin && <Button onClick={openCreate}><Plus size={16} /> Add Service</Button>}
       />
 
       <div className="mb-6 max-w-md">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search services..." />
+        <SearchBar value={search} onChange={(val) => { setSearch(val); setPage(1); }} placeholder="Search services..." />
       </div>
 
       {loading ? (
@@ -101,33 +116,39 @@ const Services = () => {
             </Card>
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : services.length === 0 ? (
         <EmptyState icon="🩺" title="No services found" description="Try a different search or add a new service."
           action={isAdmin && <Button onClick={openCreate}><Plus size={16} /> Add Service</Button>} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filtered.map(service => (
-            <Card key={service.id} className="p-6 relative group border-transparent hover:border-lime-200 transition-all">
-              <div className="bg-lime-50 text-lime-700 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-lime-700 group-hover:text-white transition-colors duration-300">
-                {getIcon(service.name)}
-              </div>
-              
-              <h3 className="text-xl font-bold text-stone-800 mb-2">{service.name}</h3>
-              <p className="text-stone-500 text-sm mb-6 line-clamp-2">{service.description || 'Professional pet care service.'}</p>
-              
-              <div className="flex items-center justify-between mt-auto pt-4 border-t border-stone-50">
-                <span className="text-2xl font-black text-lime-700">₹{parseFloat(service.price).toFixed(2)}</span>
-                {isAdmin && (
-                  <div className="flex gap-2">
-                    <button onClick={() => openEdit(service)} className="p-2 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                      <Pencil size={16} />
-                    </button>
-                  </div>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {services.map(service => (
+              <Card key={service.id} className="p-6 relative group border-transparent hover:border-lime-200 transition-all flex flex-col h-full">
+                <div className="bg-lime-50 text-lime-700 w-12 h-12 rounded-2xl flex items-center justify-center mb-4 group-hover:bg-lime-700 group-hover:text-white transition-colors duration-300">
+                  {getIcon(service.name)}
+                </div>
+                
+                <h3 className="text-xl font-bold text-stone-800 mb-2">{service.name}</h3>
+                <p className="text-stone-500 text-sm mb-6 line-clamp-2">{service.description || 'Professional pet care service.'}</p>
+                
+                <div className="flex items-center justify-between mt-auto pt-4 border-t border-stone-50">
+                  <span className="text-2xl font-black text-lime-700">₹{parseFloat(service.price).toFixed(2)}</span>
+                  {isAdmin && (
+                    <div className="flex gap-2">
+                      <button onClick={() => openEdit(service)} className="p-2 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                        <Pencil size={16} />
+                      </button>
+                      <button onClick={() => setDeleteTarget(service)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+          <Pagination currentPage={meta?.currentPage || 1} totalPages={meta?.totalPages || 1} onPageChange={setPage} />
+        </>
       )}
 
       <Modal isOpen={formOpen} onClose={() => setFormOpen(false)} title={editingService ? 'Edit Service' : 'Add Service'}>
@@ -141,6 +162,16 @@ const Services = () => {
           </div>
         </form>
       </Modal>
+
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title="Delete Service"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? This will remove it from the catalog.`}
+        confirmLabel="Delete"
+        confirmVariant="danger"
+      />
     </div>
   );
 };

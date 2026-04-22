@@ -36,7 +36,7 @@ exports.getInvoices = catchAsync(async (req, res, next) => {
     order: [['createdAt', 'DESC']],
     limit,
     offset,
-    distinct: true // Required for correct count with includes
+    distinct: true
   });
 
   res.json({
@@ -59,7 +59,6 @@ exports.getInvoiceById = catchAsync(async (req, res, next) => {
   });
   if (!invoice) return res.status(404).json({ error: 'Not found' });
 
-  // Security check for customers
   if (req.user.role === 'customer' && invoice.userId !== req.user.id) {
     return res.status(403).json({ error: 'Access denied' });
   }
@@ -71,7 +70,6 @@ exports.createInvoice = catchAsync(async (req, res, next) => {
   const { items, ...invoiceData } = req.body;
 
   const result = await sequelize.transaction(async (t) => {
-    // Use MAX id to avoid duplicate numbers when invoices are deleted
     const maxResult = await Invoice.findOne({
       attributes: [[sequelize.fn('MAX', sequelize.col('id')), 'maxId']],
       transaction: t,
@@ -84,16 +82,6 @@ exports.createInvoice = catchAsync(async (req, res, next) => {
       ...invoiceData,
       invoiceNumber,
       createdBy: req.user.id,
-      discountAmount: 0, // Will be updated after calculation
-      discountType: invoiceData.discountType || null,
-      couponCode: invoiceData.couponCode || null,
-      paymentMode: invoiceData.paymentMode || 'CASH',
-      utrNumber: invoiceData.utrNumber || null,
-      doctorId: invoiceData.doctorId || null,
-      doctorCharges: parseFloat(invoiceData.doctorCharges) || 0,
-      subtotal: 0, // Will be updated
-      tax: 0,
-      total: 0,
     }, { transaction: t });
 
     let calculatedSubtotal = parseFloat(invoiceData.doctorCharges) || 0;
@@ -101,13 +89,8 @@ exports.createInvoice = catchAsync(async (req, res, next) => {
     if (items && items.length > 0) {
       for (const item of items) {
         let product = null;
-        
-        // 1. Find product by ID or Name (Inventory Drift Prevention)
         if (item.productId) {
           product = await Product.findByPk(item.productId, { transaction: t, lock: t.LOCK.UPDATE });
-        } else {
-          // Fallback: check if the itemName matches a product exactly
-          product = await Product.findOne({ where: { name: item.itemName }, transaction: t, lock: t.LOCK.UPDATE });
         }
 
         if (product) {
@@ -115,16 +98,8 @@ exports.createInvoice = catchAsync(async (req, res, next) => {
             throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}`);
           }
           await product.update({ quantity: product.quantity - item.quantity }, { transaction: t });
-          
-          if (product.quantity <= 5) {
-            await notifyAdmins('Low Stock Alert', `Product "${product.name}" is running low on stock (${product.quantity} left).`, 'warning', '/products');
-          }
-
-          logActivity(req.user.id, 'update', 'Product', product.id,
-            `Inventory deducted: ${item.quantity} units for invoice ${invoiceNumber}`, { transaction: t });
         }
 
-        // 2. Recalculate item total and add to subtotal (Financial Integrity)
         const itemPrice = parseFloat(item.price) || 0;
         const itemQuantity = parseInt(item.quantity) || 0;
         const itemTotal = itemPrice * itemQuantity;
@@ -141,43 +116,15 @@ exports.createInvoice = catchAsync(async (req, res, next) => {
       }
     }
 
-    // 3. Final Financial Recalculation
-    const calculatedTax = calculatedSubtotal * 0.05; // Hardcoded 5% for now as per frontend
-    
-    let calculatedDiscount = 0;
-    if (invoiceData.discountType === 'FLAT') {
-      calculatedDiscount = parseFloat(invoiceData.discountAmount) || 0;
-    } else if (invoiceData.discountType === 'PERCENTAGE') {
-      calculatedDiscount = (calculatedSubtotal * (parseFloat(invoiceData.discountAmount) || 0)) / 100;
-    }
-
-    // Add coupon discount if applicable
-    if (invoiceData.couponCode) {
-      const { Coupon } = require('../models');
-      const coupon = await Coupon.findOne({ where: { code: invoiceData.couponCode, isActive: true } });
-      if (coupon) {
-        if (coupon.type === 'FLAT') {
-          calculatedDiscount += parseFloat(coupon.value);
-        } else {
-          calculatedDiscount += (calculatedSubtotal * parseFloat(coupon.value)) / 100;
-        }
-      }
-    }
-
+    const calculatedTax = calculatedSubtotal * 0.05;
+    let calculatedDiscount = parseFloat(invoiceData.discountAmount) || 0;
     const finalTotal = Math.max(0, calculatedSubtotal + calculatedTax - calculatedDiscount);
 
     await invoice.update({
       subtotal: calculatedSubtotal,
       tax: calculatedTax,
-      discountAmount: calculatedDiscount,
       total: finalTotal
     }, { transaction: t });
-
-    // Notify admins and customer (if linked)
-    await notifyAdmins('New Invoice Generated', `Invoice ${invoiceNumber} created for ${invoiceData.customerName}`, 'info', `/invoices`);
-    if (invoiceData.userId) {
-      await notify(invoiceData.userId, 'New Invoice', `A new invoice ${invoiceNumber} has been generated for you.`, 'success', `/my-invoices`);
-    }
 
     return invoice;
   });
@@ -188,77 +135,104 @@ exports.createInvoice = catchAsync(async (req, res, next) => {
 });
 
 exports.updateInvoice = catchAsync(async (req, res, next) => {
-  const { status, items } = req.body;
+  const { items, status, ...updateData } = req.body;
   const invoice = await Invoice.findByPk(req.params.id, { include: [InvoiceItem] });
   if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
 
   const oldStatus = invoice.status;
   const newStatus = status || oldStatus;
-  
-  await sequelize.transaction(async (t) => {
-    // 1. If status is changing TO Cancelled, restore all stock
-    if (newStatus === 'Cancelled' && oldStatus !== 'Cancelled') {
+
+  const result = await sequelize.transaction(async (t) => {
+    // 1. Restore old stock if the invoice wasn't already cancelled
+    if (oldStatus !== 'Cancelled') {
       for (const item of invoice.InvoiceItems) {
         if (item.productId) {
-          const product = await Product.findByPk(item.productId, { transaction: t });
+          const product = await Product.findByPk(item.productId, { transaction: t, lock: t.LOCK.UPDATE });
           if (product) {
             await product.update({ quantity: product.quantity + item.quantity }, { transaction: t });
           }
         }
       }
     }
+
+    // 2. Clear old items
+    await InvoiceItem.destroy({ where: { invoiceId: invoice.id }, transaction: t });
+
+    // 3. Process new items and deduct stock (unless new status is Cancelled)
+    let calculatedSubtotal = parseFloat(updateData.doctorCharges) || 0;
     
-    // 2. If status is changing FROM Cancelled to something else, re-deduct stock
-    if (oldStatus === 'Cancelled' && newStatus !== 'Cancelled') {
-      for (const item of invoice.InvoiceItems) {
-        if (item.productId) {
-          const product = await Product.findByPk(item.productId, { transaction: t });
-          if (!product || product.quantity < item.quantity) {
-            throw new Error(`Insufficient stock for ${item.itemName} to reactivate invoice`);
+    if (items && items.length > 0) {
+      for (const item of items) {
+        let product = null;
+        if (item.productId && newStatus !== 'Cancelled') {
+          product = await Product.findByPk(item.productId, { transaction: t, lock: t.LOCK.UPDATE });
+          if (product) {
+            if (product.quantity < item.quantity) {
+              throw new Error(`Insufficient stock for ${product.name}. Available: ${product.quantity}`);
+            }
+            await product.update({ quantity: product.quantity - item.quantity }, { transaction: t });
           }
-          await product.update({ quantity: product.quantity - item.quantity }, { transaction: t });
         }
+
+        const itemPrice = parseFloat(item.price) || 0;
+        const itemQuantity = parseInt(item.quantity) || 0;
+        const itemTotal = itemPrice * itemQuantity;
+        calculatedSubtotal += itemTotal;
+
+        await InvoiceItem.create({
+          ...item,
+          productId: item.productId || null,
+          price: itemPrice,
+          quantity: itemQuantity,
+          total: itemTotal,
+          invoiceId: invoice.id
+        }, { transaction: t });
       }
     }
 
-    // 3. Update invoice details
-    await invoice.update({ status: newStatus }, { transaction: t });
+    // 4. Recalculate financial totals
+    const calculatedTax = calculatedSubtotal * 0.05;
+    const calculatedDiscount = parseFloat(updateData.discountAmount) || 0;
+    const finalTotal = Math.max(0, calculatedSubtotal + calculatedTax - calculatedDiscount);
 
-    // Notify on status change
-    if (newStatus === 'Paid' && oldStatus !== 'Paid') {
-      await notifyAdmins('Invoice Paid', `Invoice ${invoice.invoiceNumber} has been marked as Paid.`, 'success', `/invoices`);
-      if (invoice.userId) {
-        await notify(invoice.userId, 'Payment Received', `Payment for invoice ${invoice.invoiceNumber} has been confirmed. Thank you!`, 'success', `/my-invoices`);
-      }
-    }
+    await invoice.update({
+      ...updateData,
+      status: newStatus,
+      subtotal: calculatedSubtotal,
+      tax: calculatedTax,
+      total: finalTotal
+    }, { transaction: t });
+
+    return invoice;
   });
 
-  logActivity(req.user.id, 'update', 'Invoice', invoice.id, `Updated invoice ${invoice.invoiceNumber} status from ${oldStatus} to ${newStatus}`);
-  
-  const updatedInvoice = await Invoice.findByPk(invoice.id, { include: [InvoiceItem] });
-  res.json(updatedInvoice);
+  logActivity(req.user.id, 'update', 'Invoice', invoice.id, `Updated invoice ${invoice.invoiceNumber}`);
+  const fullInvoice = await Invoice.findByPk(invoice.id, { include: [InvoiceItem] });
+  res.json(fullInvoice);
 });
 
 exports.deleteInvoice = catchAsync(async (req, res, next) => {
   const invoice = await Invoice.findByPk(req.params.id, { include: [InvoiceItem] });
   if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-  if (invoice.status !== 'Draft') {
-    return res.status(400).json({ error: 'Only Draft invoices can be deleted. Cancel it first.' });
+  
+  if (invoice.status !== 'Draft' && req.user.role !== 'admin') {
+    return res.status(400).json({ error: 'Only admins can delete non-draft invoices.' });
   }
 
   await sequelize.transaction(async (t) => {
-    for (const item of invoice.InvoiceItems) {
-      if (item.productId) {
-        const product = await Product.findByPk(item.productId, { transaction: t });
-        if (product) {
-          await product.update({ quantity: product.quantity + item.quantity }, { transaction: t });
+    if (invoice.status !== 'Cancelled') {
+      for (const item of invoice.InvoiceItems) {
+        if (item.productId) {
+          const product = await Product.findByPk(item.productId, { transaction: t, lock: t.LOCK.UPDATE });
+          if (product) {
+            await product.update({ quantity: product.quantity + item.quantity }, { transaction: t });
+          }
         }
       }
     }
     await invoice.destroy({ transaction: t });
   });
 
-  logActivity(req.user.id, 'delete', 'Invoice', invoice.id, `Deleted draft invoice ${invoice.invoiceNumber}`);
+  logActivity(req.user.id, 'delete', 'Invoice', invoice.id, `Deleted invoice ${invoice.invoiceNumber}`);
   res.json({ message: 'Invoice deleted and stock restored' });
 });
-

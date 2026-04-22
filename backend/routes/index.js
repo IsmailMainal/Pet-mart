@@ -8,7 +8,10 @@ const authController = require('../controllers/authController');
 const productController = require('../controllers/productController');
 const appointmentController = require('../controllers/appointmentController');
 const invoiceController = require('../controllers/invoiceController');
-const { getServices, createService, updateService, getDoctors, createDoctor } = require('../controllers/generalController');
+const { 
+  getServices, createService, updateService, deleteService,
+  getDoctors, createDoctor, updateDoctor, deleteDoctor 
+} = require('../controllers/generalController');
 const dashboardController = require('../controllers/dashboardController');
 const logController = require('../controllers/logController');
 const couponController = require('../controllers/couponController');
@@ -26,18 +29,22 @@ const { sequelize } = require('../models');
 router.get('/health', async (req, res) => {
   try {
     await sequelize.authenticate();
-    res.json({ status: 'ok', database: 'connected', timestamp: new Date() });
+    res.json({ status: 'ok', database: 'connected' });
   } catch (err) {
-    res.status(500).json({ status: 'error', database: 'disconnected', error: err.message });
+    res.status(500).json({ status: 'error', message: 'Service unavailable' });
   }
 });
 
 // Auth Routes
 router.post('/auth/login', validate(authSchema), authController.login);
-router.post('/auth/register', validate(authSchema), authController.register);
+router.post('/auth/register', upload.single('profileImage'), authController.register);
+router.post('/auth/forgot-password', authController.forgotPassword);
+router.post('/auth/reset-password', authController.resetPassword);
 
 // User (self) — must come BEFORE /users/:id
 router.get('/users/me', authenticate, authController.getMe);
+router.put('/users/me', authenticate, upload.single('profileImage'), userController.updateMe);
+router.delete('/users/me', authenticate, userController.deactivateMe);
 
 
 
@@ -79,15 +86,19 @@ router.get('/products/:id/history', authenticate, authorize(['admin', 'reception
 router.get('/services', getServices);
 router.post('/services', authenticate, authorize(['admin']), validate(serviceSchema), createService);
 router.put('/services/:id', authenticate, authorize(['admin']), validate(serviceSchema), updateService);
+router.delete('/services/:id', authenticate, authorize(['admin']), deleteService);
 
 // Doctors
 router.get('/doctors', getDoctors);
 router.post('/doctors', authenticate, authorize(['admin']), createDoctor);
+router.put('/doctors/:id', authenticate, authorize(['admin']), updateDoctor);
+router.delete('/doctors/:id', authenticate, authorize(['admin']), deleteDoctor);
 
 // Appointments
 router.get('/appointments', authenticate, appointmentController.getAppointments);
 router.post('/appointments', authenticate, validate(appointmentSchema), appointmentController.createAppointment);
 router.put('/appointments/:id', authenticate, authorize(['admin', 'receptionist', 'customer']), appointmentController.updateAppointment);
+router.delete('/appointments/:id', authenticate, appointmentController.deleteAppointment);
 
 // Invoices
 router.get('/invoices', authenticate, authorize(['admin', 'receptionist', 'customer']), invoiceController.getInvoices);
@@ -111,6 +122,7 @@ router.get('/logs', authenticate, authorize(['admin']), logController.getLogs);
 
 // Notifications
 router.get('/notifications', authenticate, notificationController.getNotifications);
+router.put('/notifications/read-all', authenticate, notificationController.markAllAsRead);
 router.put('/notifications/:id/read', authenticate, notificationController.markAsRead);
 router.delete('/notifications', authenticate, notificationController.clearNotifications);
 

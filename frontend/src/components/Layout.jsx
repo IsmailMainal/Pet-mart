@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import {
   LayoutDashboard, ShoppingBag, Calendar, FileText,
-  LogOut, Users, Menu, X, PawPrint, ChevronRight, Heart, Activity, Tag, Bell
+  LogOut, Users, Menu, X, PawPrint, ChevronRight, Heart, Activity, Tag, Bell, Stethoscope
 } from 'lucide-react';
 import { useNotifications as useToastHistory } from './Toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -17,7 +17,7 @@ const NotificationBell = () => {
     queryKey: ['notifications'],
     queryFn: async () => {
       const res = await api.get('/notifications');
-      return res.data;
+      return Array.isArray(res.data) ? res.data : [];
     },
     refetchInterval: 30000 // Refetch every 30s
   });
@@ -27,12 +27,18 @@ const NotificationBell = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] })
   });
 
+  const markReadAllMutation = useMutation({
+    mutationFn: () => api.put('/notifications/read-all'),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] })
+  });
+
   const clearMutation = useMutation({
     mutationFn: () => api.delete('/notifications'),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] })
   });
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const notificationsArr = Array.isArray(notifications) ? notifications : [];
+  const unreadCount = notificationsArr.filter(n => !n.isRead).length;
 
   const formatDate = (date) => {
     const d = new Date(date);
@@ -64,20 +70,25 @@ const NotificationBell = () => {
           <div className="absolute right-0 mt-2 w-80 bg-white border border-stone-200 rounded-2xl shadow-xl z-50 overflow-hidden slide-up">
             <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
               <h3 className="text-sm font-bold text-stone-800">Notifications</h3>
-              {notifications.length > 0 && (
-                <button onClick={() => clearMutation.mutate()} className="text-[10px] font-bold text-stone-400 hover:text-red-500 uppercase tracking-wider">Clear all</button>
-              )}
+              <div className="flex gap-3">
+                {unreadCount > 0 && (
+                  <button onClick={() => markReadAllMutation.mutate()} className="text-[10px] font-bold text-lime-600 hover:text-lime-700 uppercase tracking-wider">Mark all read</button>
+                )}
+                {notificationsArr.length > 0 && (
+                  <button onClick={() => clearMutation.mutate()} className="text-[10px] font-bold text-stone-400 hover:text-red-500 uppercase tracking-wider">Clear all</button>
+                )}
+              </div>
             </div>
             <div className="max-h-[400px] overflow-y-auto">
-              {notifications.length === 0 ? (
+              {notificationsArr.length === 0 ? (
                 <div className="px-4 py-8 text-center">
                   <p className="text-sm text-stone-400">No notifications yet</p>
                 </div>
               ) : (
-                notifications.map((n, i) => (
+                notificationsArr.map((n, i) => (
                   <div key={n.id} 
                     onClick={() => !n.isRead && markReadMutation.mutate(n.id)}
-                    className={`px-4 py-3 flex gap-3 hover:bg-stone-50 transition-colors cursor-pointer ${!n.isRead ? 'bg-lime-50/30' : ''} ${i !== notifications.length - 1 ? 'border-b border-stone-50' : ''}`}>
+                    className={`px-4 py-3 flex gap-3 hover:bg-stone-50 transition-colors cursor-pointer ${!n.isRead ? 'bg-lime-50/30' : ''} ${i !== notificationsArr.length - 1 ? 'border-b border-stone-50' : ''}`}>
                     <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${!n.isRead ? 'bg-lime-500' : 'bg-stone-200'}`} />
                     <div className="flex-1">
                       <p className={`text-xs leading-tight ${!n.isRead ? 'font-bold text-stone-800' : 'text-stone-500'}`}>{n.title}</p>
@@ -101,6 +112,7 @@ const navLinks = (role) => {
     { to: '/dashboard/products', icon: ShoppingBag, label: 'Products', roles: ['admin', 'receptionist', 'customer'] },
     { to: '/dashboard/appointments', icon: Calendar, label: 'Appointments', roles: ['admin', 'receptionist', 'customer'] },
     { to: '/dashboard/services', icon: Heart, label: 'Services', roles: ['admin', 'receptionist', 'customer'] },
+    { to: '/dashboard/doctors', icon: Stethoscope, label: 'Doctors', roles: ['admin', 'receptionist', 'customer'] },
     {to: '/dashboard/invoices', icon: FileText, label: 'Invoices', roles: ['admin', 'receptionist'] },
     { to: '/dashboard/my-bills', icon: FileText, label: 'My Bills', roles: ['customer'] },
     { to: '/dashboard/coupons', icon: Tag, label: 'Coupons', roles: ['admin'] },
@@ -158,16 +170,22 @@ const Layout = () => {
       </nav>
 
       {/* User profile */}
-      <div className="px-3 py-4 border-t border-stone-100">
+      <Link to="/dashboard/profile" className="px-3 py-4 border-t border-stone-100 block group hover:bg-stone-50 transition-colors">
         <div className="flex items-center gap-3 px-3 py-2 mb-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-lime-600 to-lime-800 flex items-center justify-center text-white text-sm font-bold shrink-0">
-            {user?.name?.charAt(0).toUpperCase()}
+          <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 text-sm font-bold shrink-0 overflow-hidden ring-2 ring-white">
+            {user?.profileImage ? (
+              <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" />
+            ) : (
+              user?.name?.charAt(0).toUpperCase()
+            )}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-stone-800 truncate">{user?.name}</p>
+            <p className="text-sm font-semibold text-stone-800 truncate group-hover:text-lime-700 transition-colors">{user?.name}</p>
             <p className="text-xs text-stone-400 capitalize">{user?.role}</p>
           </div>
         </div>
+      </Link>
+      <div className="px-3 pb-4">
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-stone-500 hover:bg-red-50 hover:text-red-600 transition-colors"
@@ -215,15 +233,19 @@ const Layout = () => {
           <div className="flex items-center gap-4">
             <NotificationBell />
             <div className="h-8 w-[1px] bg-stone-100 hidden sm:block" />
-            <div className="hidden sm:flex items-center gap-3">
+            <Link to="/dashboard/profile" className="hidden sm:flex items-center gap-3 group">
               <div className="text-right">
-                <p className="text-xs font-bold text-stone-800 leading-none">{user?.name}</p>
+                <p className="text-xs font-bold text-stone-800 leading-none group-hover:text-lime-700 transition-colors">{user?.name}</p>
                 <p className="text-[10px] text-stone-400 capitalize">{user?.role}</p>
               </div>
-              <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 text-xs font-bold ring-2 ring-white">
-                {user?.name?.charAt(0).toUpperCase()}
+              <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 text-xs font-bold ring-2 ring-white overflow-hidden">
+                {user?.profileImage ? (
+                  <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                  user?.name?.charAt(0).toUpperCase()
+                )}
               </div>
-            </div>
+            </Link>
           </div>
         </header>
 

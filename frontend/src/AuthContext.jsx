@@ -10,20 +10,21 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const token = Cookies.get('token');
-      if (token) {
-        try {
-          const res = await api.get('/users/me');
-          setUser(res.data.user);
-        } catch (err) {
-          Cookies.remove('token');
-        }
+  const fetchUser = async () => {
+    const token = Cookies.get('token');
+    if (token) {
+      try {
+        const res = await api.get('/users/me');
+        setUser(res.data.user);
+      } catch (err) {
+        Cookies.remove('token');
+        setUser(null);
       }
-      // Artificial delay to show off the fun loading messages
-      setTimeout(() => setLoading(false), 800);
-    };
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
     fetchUser();
   }, []);
 
@@ -33,8 +34,10 @@ export const AuthProvider = ({ children }) => {
     setUser(res.data.user);
   };
 
-  const register = async (name, email, password) => {
-    const res = await api.post('/auth/register', { name, email, password });
+  const register = async (formData) => {
+    // If formData is an object, it will be sent as JSON.
+    // If it's a FormData instance, it will be sent as multipart/form-data.
+    const res = await api.post('/auth/register', formData);
     Cookies.set('token', res.data.token);
     setUser(res.data.user);
   };
@@ -45,7 +48,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ user, setUser, login, register, logout, loading, refreshUser: fetchUser }}>
       {loading ? <LoadingScreen /> : children}
     </AuthContext.Provider>
   );

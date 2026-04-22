@@ -13,7 +13,9 @@ const authenticate = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = await User.findByPk(decoded.id);
-    if (!req.user) throw new Error();
+    if (!req.user || !req.user.isActive) {
+      return res.status(401).json({ error: 'Unauthorized: Account is inactive or does not exist' });
+    }
     next();
   } catch (err) {
     res.status(401).json({ error: 'Unauthorized' });

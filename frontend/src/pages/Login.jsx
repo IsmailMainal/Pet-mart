@@ -39,15 +39,22 @@ const Login = () => {
         </div>
 
         <div className="bg-white rounded-3xl shadow-xl border border-stone-100 p-8">
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
             <div>
               <label className="block text-sm font-medium text-stone-700 mb-1.5">Email</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                autoComplete="off"
                 className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-lime-600 focus:ring-2 focus:ring-lime-100 transition-all" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-stone-700 mb-1.5">Password</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-stone-700">Password</label>
+                <Link to="/forgot-password" size="sm" className="text-xs font-bold text-lime-700 hover:text-lime-600 transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+                autoComplete="new-password"
                 className="w-full border border-stone-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-lime-600 focus:ring-2 focus:ring-lime-100 transition-all" />
             </div>
             <button type="submit" disabled={loading}
@@ -56,17 +63,6 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="mt-6 pt-5 border-t border-stone-100">
-            <p className="text-xs text-stone-400 text-center mb-3 font-medium">Demo accounts (password: password123)</p>
-            <div className="flex gap-2 justify-center">
-              {['admin@petsmart.com', 'receptionist@petsmart.com', 'customer@petsmart.com'].map(em => (
-                <button key={em} onClick={() => setEmail(em)}
-                  className="text-xs bg-stone-100 hover:bg-lime-50 hover:text-lime-700 text-stone-500 px-2.5 py-1.5 rounded-lg transition-colors font-medium capitalize">
-                  {em.split('@')[0]}
-                </button>
-              ))}
-            </div>
-          </div>
 
           <p className="text-center text-sm text-stone-400 mt-6">
             Don't have an account? <Link to="/signup" className="text-lime-700 hover:text-lime-600 font-semibold">Sign up</Link>

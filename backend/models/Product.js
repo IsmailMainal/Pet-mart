@@ -6,6 +6,10 @@ const Product = sequelize.define('Product', {
   price: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
   description: { type: DataTypes.TEXT },
   quantity: { type: DataTypes.INTEGER, defaultValue: 0 }
+}, {
+  indexes: [
+    { fields: ['name'] }
+  ]
 });
 
 module.exports = Product;

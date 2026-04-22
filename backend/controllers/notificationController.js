@@ -18,6 +18,13 @@ exports.markAsRead = catchAsync(async (req, res) => {
   res.json({ message: 'Marked as read' });
 });
 
+exports.markAllAsRead = catchAsync(async (req, res) => {
+  await Notification.update({ isRead: true }, {
+    where: { userId: req.user.id, isRead: false }
+  });
+  res.json({ message: 'All notifications marked as read' });
+});
+
 exports.clearNotifications = catchAsync(async (req, res) => {
   await Notification.destroy({
     where: { userId: req.user.id }

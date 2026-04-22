@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
 import { useToast } from '../components/Toast';
-import { Button, Card, Input, Select, Modal, ConfirmModal, PageHeader, SearchBar, Badge, EmptyState, Skeleton } from '../components/UI';
+import { 
+  Button, Card, Input, Select, Modal, ConfirmModal, 
+  PageHeader, SearchBar, Badge, EmptyState, Skeleton, Pagination 
+} from '../components/UI';
 import { Plus, Pencil, Trash2, Shield, User, Headphones } from 'lucide-react';
 
 const ROLE_CONFIG = {
@@ -21,8 +24,10 @@ const Users = () => {
   const toast = useToast();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [meta, setMeta] = useState({ totalCount: 0, totalPages: 1, currentPage: 1 });
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [formData, setFormData] = useState({ ...defaultForm, role: 'receptionist' });
@@ -31,12 +36,21 @@ const Users = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
-    try { const res = await api.get('/users'); setUsers(res.data); }
+    try { 
+      const res = await api.get(`/users?page=${page}&search=${search}&role=${roleFilter}`); 
+      setUsers(res.data.users || []);
+      setMeta(res.data.meta || { totalCount: 0, totalPages: 1, currentPage: 1 });
+    }
     catch { toast('error', 'Failed to load users'); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { 
+    const delayDebounce = setTimeout(() => {
+      fetchUsers();
+    }, 300);
+    return () => clearTimeout(delayDebounce);
+  }, [page, search, roleFilter]);
 
   const openCreate = () => { setEditingUser(null); setFormData(defaultForm); setFormOpen(true); };
   const openEdit = (u) => { setEditingUser(u); setFormData({ name: u.name, email: u.email, password: '', role: u.role }); setFormOpen(true); };
@@ -69,35 +83,16 @@ const Users = () => {
     } catch { toast('error', 'Delete failed'); }
   };
 
-  const filtered = (Array.isArray(users) ? users : []).filter(u => {
-    const matchSearch = (u.name || '').toLowerCase().includes(search.toLowerCase()) || 
-                        (u.email || '').toLowerCase().includes(search.toLowerCase());
-    const matchRole = roleFilter === 'all' || u.role === roleFilter;
-    return matchSearch && matchRole;
-  });
-
-  const stats = { admin: users.filter(u => u.role === 'admin').length, receptionist: users.filter(u => u.role === 'receptionist').length };
-
   return (
     <div>
-      <PageHeader title="Staff Management" description={`${users.length} staff members (admins & receptionists)`} action={<Button onClick={openCreate}><Plus size={16} /> Add Staff</Button>} />
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        {[['Admins', stats.admin, 'purple'], ['Receptionists', stats.receptionist, 'blue']].map(([label, count, color]) => (
-          <Card key={label} className="p-4 text-center">
-            <p className="text-3xl font-bold text-stone-800">{count}</p>
-            <p className="text-xs text-stone-400 mt-1">{label}</p>
-          </Card>
-        ))}
-      </div>
+      <PageHeader title="Staff Management" description={`${meta?.totalCount || 0} staff members (admins & receptionists)`} action={<Button onClick={openCreate}><Plus size={16} /> Add Staff</Button>} />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <SearchBar value={search} onChange={setSearch} placeholder="Search users..." />
+        <SearchBar value={search} onChange={(val) => { setSearch(val); setPage(1); }} placeholder="Search users..." />
         <div className="flex gap-2 shrink-0">
           {['all', 'admin', 'receptionist'].map(r => (
-            <button key={r} onClick={() => setRoleFilter(r)}
+            <button key={r} onClick={() => { setRoleFilter(r); setPage(1); }}
               className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${roleFilter === r ? 'bg-lime-700 text-white border-lime-700' : 'bg-white border-stone-200 text-stone-500 hover:border-lime-400'}`}>
               {r === 'all' ? 'All Staff' : r.charAt(0).toUpperCase() + r.slice(1)}
             </button>
@@ -117,52 +112,55 @@ const Users = () => {
             </div>
           ))}
         </Card>
-      ) : filtered.length === 0 ? (
+      ) : users.length === 0 ? (
         <EmptyState icon="👥" title="No staff found" description="No admin or receptionist accounts match your search." action={<Button onClick={openCreate}><Plus size={16} /> Add Staff</Button>} />
       ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-stone-100 bg-stone-50">
-                <tr>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-stone-500 uppercase tracking-wide">User</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-stone-500 uppercase tracking-wide hidden md:table-cell">Email</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-stone-500 uppercase tracking-wide">Role</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-stone-500 uppercase tracking-wide hidden lg:table-cell">Joined</th>
-                  <th className="px-6 py-3.5 text-right text-xs font-semibold text-stone-500 uppercase tracking-wide">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-stone-50">
-                {filtered.map(u => (
-                  <tr key={u.id} className="hover:bg-stone-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-lime-600 to-lime-800 flex items-center justify-center text-white text-sm font-bold shrink-0">
-                          {u.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-stone-800">{u.name}</p>
-                          <p className="text-xs text-stone-400 md:hidden">{u.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-stone-500 hidden md:table-cell">{u.email}</td>
-                    <td className="px-6 py-4"><RoleBadge role={u.role} /></td>
-                    <td className="px-6 py-4 text-stone-400 text-xs hidden lg:table-cell">
-                      {new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => openEdit(u)} className="p-2 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil size={15} /></button>
-                        <button onClick={() => setDeleteTarget(u)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={15} /></button>
-                      </div>
-                    </td>
+        <>
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b border-stone-100 bg-stone-50">
+                  <tr>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold text-stone-500 uppercase tracking-wide">User</th>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold text-stone-500 uppercase tracking-wide hidden md:table-cell">Email</th>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold text-stone-500 uppercase tracking-wide">Role</th>
+                    <th className="px-6 py-3.5 text-left text-xs font-semibold text-stone-500 uppercase tracking-wide hidden lg:table-cell">Joined</th>
+                    <th className="px-6 py-3.5 text-right text-xs font-semibold text-stone-500 uppercase tracking-wide">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+                </thead>
+                <tbody className="divide-y divide-stone-50">
+                  {users.map(u => (
+                    <tr key={u.id} className="hover:bg-stone-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-lime-600 to-lime-800 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                            {u.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-stone-800">{u.name}</p>
+                            <p className="text-xs text-stone-400 md:hidden">{u.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-stone-500 hidden md:table-cell">{u.email}</td>
+                      <td className="px-6 py-4"><RoleBadge role={u.role} /></td>
+                      <td className="px-6 py-4 text-stone-400 text-xs hidden lg:table-cell">
+                        {new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => openEdit(u)} className="p-2 text-stone-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><Pencil size={15} /></button>
+                          <button onClick={() => setDeleteTarget(u)} className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={15} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+           <Pagination currentPage={meta?.currentPage || 1} totalPages={meta?.totalPages || 1} onPageChange={setPage} />
+        </>
       )}
 
       {/* Form Modal */}

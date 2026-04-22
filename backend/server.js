@@ -11,17 +11,36 @@ const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
 
-// Security HTTP headers - relaxed for development/cross-origin images
+// Security HTTP headers
 app.use(helmet({
-  crossOriginResourcePolicy: false,
-  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
   contentSecurityPolicy: {
     directives: {
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-      "img-src": ["'self'", "data:", "http:", "https:"],
+      "img-src": ["'self'", "data:", "http:", "https:", "*.cloudinary.com"],
     },
   },
 }));
+
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiting to all requests
+app.use('/api/', limiter);
+
+// Stricter rate limit for Auth routes
+const authLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // Limit each IP to 10 login/register attempts per hour
+  message: { error: 'Too many login attempts, please try again in an hour.' },
+});
+app.use('/api/auth/', authLimiter);
 
 // CORS — allow frontend origins
 const allowedOrigins = [
@@ -36,7 +55,7 @@ app.use(cors({
     if (!origin) return callback(null, true);
     if (
       allowedOrigins.indexOf(origin) !== -1 || 
-      origin.includes('.vercel.app') || 
+      (origin.endsWith('.vercel.app') && origin.includes('pet-shop')) || 
       process.env.NODE_ENV === 'development'
     ) {
       callback(null, true);
