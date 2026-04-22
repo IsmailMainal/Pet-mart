@@ -12,13 +12,19 @@ async function createAdmin() {
     await sequelize.sync({ alter: true });
     console.log('✅ Database synchronized.');
 
-    const adminEmail = 'admin@bijapurpetcare.com';
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@bijapurpetcare.com';
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (!adminPassword) {
+      throw new Error('❌ ADMIN_PASSWORD is not set in .env file');
+    }
+
     const existingAdmin = await User.findOne({ where: { email: adminEmail } });
 
     if (existingAdmin) {
       console.log(`ℹ️ Admin user with email ${adminEmail} already exists.`);
     } else {
-      const hashedPassword = await bcrypt.hash('admin123', 10);
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
       await User.create({
         name: 'System Admin',
         email: adminEmail,
@@ -27,7 +33,7 @@ async function createAdmin() {
       });
       console.log('✅ Admin user created successfully!');
       console.log(`📧 Email: ${adminEmail}`);
-      console.log('🔑 Password: bijapurpetcare@028');
+      // Password logging removed for security
     }
 
   } catch (error) {

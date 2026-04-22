@@ -9,8 +9,8 @@ const Login = () => {
   const { login } = useContext(AuthContext);
   const toast = useToast();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@petsmart.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const loadingMsg = useLoadingMessage();
 
