@@ -28,11 +28,11 @@ const errorHandler = (err, req, res, next) => {
       message: err.errors.map(e => e.message).join(', ')
     });
   }
-  // Multer Errors
-  if (err.name === 'MulterError' || err.message === 'Only images are allowed!') {
+  // Multer & Upload Errors
+  if (err.name === 'MulterError' || err.message === 'Only images are allowed!' || err.message?.includes('Cloudinary')) {
     return res.status(400).json({
       error: 'Upload failed',
-      message: err.message
+      message: err.message || 'Image storage service error. Check API credentials.'
     });
   }
 
