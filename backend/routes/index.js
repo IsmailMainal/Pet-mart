@@ -20,6 +20,17 @@ const {
 } = require('../utils/schemas');
 
 const userController = require('../controllers/userController');
+const { sequelize } = require('../models');
+
+// Health Check
+router.get('/health', async (req, res) => {
+  try {
+    await sequelize.authenticate();
+    res.json({ status: 'ok', database: 'connected', timestamp: new Date() });
+  } catch (err) {
+    res.status(500).json({ status: 'error', database: 'disconnected', error: err.message });
+  }
+});
 
 // Auth Routes
 router.post('/auth/login', validate(authSchema), authController.login);

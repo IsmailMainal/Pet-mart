@@ -26,15 +26,19 @@ app.use(helmet({
 // CORS — allow frontend origins
 const allowedOrigins = [
   process.env.CLIENT_URL,
-  'http://localhost:5173',
-  'http://localhost:3000'
+  'https://pet-shop-xa1r.onrender.com',
+  'https://pet-shop-xa1r.vercel.app'
 ].filter(Boolean);
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+    if (
+      allowedOrigins.indexOf(origin) !== -1 || 
+      origin.includes('.vercel.app') || 
+      process.env.NODE_ENV === 'development'
+    ) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
