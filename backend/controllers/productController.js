@@ -50,8 +50,12 @@ exports.createProduct = catchAsync(async (req, res, next) => {
   // Uploaded files
   if (req.files && req.files.length > 0) {
     for (const file of req.files) {
-      const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
-      imageRecords.push({ productId: product.id, imageUrl, type: 'high' });
+      imageRecords.push({ 
+        productId: product.id, 
+        imageUrl: file.path, 
+        publicId: file.filename, 
+        type: 'high' 
+      });
     }
   }
 
@@ -89,8 +93,12 @@ exports.updateProduct = catchAsync(async (req, res, next) => {
   // Add new uploaded files
   if (req.files && req.files.length > 0) {
     for (const file of req.files) {
-      const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${file.filename}`;
-      await ProductImage.create({ productId: product.id, imageUrl, type: 'high' });
+      await ProductImage.create({ 
+        productId: product.id, 
+        imageUrl: file.path, 
+        publicId: file.filename, 
+        type: 'high' 
+      });
     }
   }
 
@@ -113,11 +121,19 @@ exports.deleteProduct = catchAsync(async (req, res, next) => {
   const product = await Product.findByPk(req.params.id, { include: [ProductImage] });
   if (!product) return res.status(404).json({ error: 'Not found' });
 
-  // Delete physical files
-  const fs = require('fs');
-  const path = require('path');
+  // Delete images from Cloudinary and database
+  const { cloudinary } = require('../config/cloudinary');
   for (const img of product.ProductImages) {
-    if (img.imageUrl.includes('/uploads/')) {
+    if (img.publicId) {
+      try {
+        await cloudinary.uploader.destroy(img.publicId);
+      } catch (err) {
+        console.error('Cloudinary delete failed:', err);
+      }
+    } else if (img.imageUrl.includes('/uploads/')) {
+      // Legacy local file deletion
+      const fs = require('fs');
+      const path = require('path');
       const filename = img.imageUrl.split('/uploads/').pop();
       const filePath = path.join(__dirname, '..', 'uploads', filename);
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
@@ -133,8 +149,16 @@ exports.deleteProductImage = catchAsync(async (req, res, next) => {
   const image = await ProductImage.findByPk(req.params.imageId);
   if (!image) return res.status(404).json({ error: 'Image not found' });
 
-  // Delete physical file
-  if (image.imageUrl.includes('/uploads/')) {
+  // Delete from Cloudinary
+  if (image.publicId) {
+    const { cloudinary } = require('../config/cloudinary');
+    try {
+      await cloudinary.uploader.destroy(image.publicId);
+    } catch (err) {
+      console.error('Cloudinary delete failed:', err);
+    }
+  } else if (image.imageUrl.includes('/uploads/')) {
+    // Legacy local file deletion
     const fs = require('fs');
     const path = require('path');
     const filename = image.imageUrl.split('/uploads/').pop();
