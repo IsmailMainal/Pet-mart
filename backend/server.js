@@ -10,6 +10,7 @@ const routes = require('./routes');
 const errorHandler = require('./middleware/errorHandler');
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Security HTTP headers
 app.use(helmet({
@@ -29,6 +30,7 @@ const limiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS',
 });
 
 // Apply rate limiting to all requests
@@ -37,8 +39,9 @@ app.use('/api/', limiter);
 // Stricter rate limit for Auth routes
 const authLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // Limit each IP to 10 login/register attempts per hour
+  max: 100, // Increased from 10
   message: { error: 'Too many login attempts, please try again in an hour.' },
+  skip: (req) => req.method === 'OPTIONS',
 });
 app.use('/api/auth/', authLimiter);
 
@@ -46,7 +49,8 @@ app.use('/api/auth/', authLimiter);
 const allowedOrigins = [
   process.env.CLIENT_URL,
   'https://pet-shop-xa1r.onrender.com',
-  'https://pet-shop-xa1r.vercel.app'
+  'https://pet-shop-xa1r.vercel.app',
+  'http://localhost:5173'
 ].filter(Boolean);
 
 app.use(cors({
@@ -101,7 +105,9 @@ const startServer = async () => {
   try {
     // In production, 'alter: true' can be dangerous. Consider migrations instead.
     // For now, we'll keep it but wrap it in a safer check.
-    const syncOptions = process.env.NODE_ENV === 'production' ? { alter: false } : { alter: true };
+    // DISABLING 'alter: true' as it causes redundant index creation (Too many keys error)
+    // Use migrations for schema changes.
+    const syncOptions = { alter: false };
     
     console.log('🔄  Syncing database...');
     await sequelize.sync(syncOptions);

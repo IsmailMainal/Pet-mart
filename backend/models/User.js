@@ -34,9 +34,8 @@ const User = sequelize.define('User', {
   }
 }, {
   indexes: [
-    { fields: ['phone'] },
-    { fields: ['email'] },
-    { fields: ['role'] }
+    { name: 'users_phone_idx', fields: ['phone'] },
+    { name: 'users_role_idx', fields: ['role'] }
   ]
 });
 
