@@ -10,7 +10,7 @@ import {
 import { formatCurrency } from '../utils/format';
 
 const Reports = () => {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading, isError } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: () => api.get('/dashboard/stats').then(r => r.data),
   });
@@ -22,6 +22,15 @@ const Reports = () => {
         {Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-32 rounded-3xl" />)}
       </div>
       <Skeleton className="h-96 rounded-3xl" />
+    </div>
+  );
+
+  if (isError || !stats) return (
+    <div className="space-y-6">
+      <PageHeader title="Business Intelligence" description="Error loading performance metrics" />
+      <div className="p-6 bg-red-50 text-red-600 rounded-xl font-medium border border-red-100">
+        Failed to load report data. This is likely because the backend API is still deploying or encountered an error.
+      </div>
     </div>
   );
 

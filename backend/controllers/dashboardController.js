@@ -1,4 +1,4 @@
-const { Product, Appointment, Invoice, InvoiceItem, Service, Coupon, sequelize } = require('../models');
+const { Product, Appointment, Invoice, InvoiceItem, Service, Coupon, Doctor, sequelize } = require('../models');
 const catchAsync = require('../utils/catchAsync');
 const { Op } = require('sequelize');
 
@@ -117,11 +117,11 @@ exports.getStats = catchAsync(async (req, res, next) => {
       'doctorId',
       [sequelize.fn('SUM', sequelize.col('doctorCharges')), 'totalDoctorCharges'],
       [sequelize.fn('SUM', sequelize.col('total')), 'totalRevenue'],
-      [sequelize.fn('COUNT', sequelize.col('id')), 'invoiceCount'],
+      [sequelize.fn('COUNT', sequelize.col('Invoice.id')), 'invoiceCount'],
     ],
     where: { status: 'Paid', doctorId: { [Op.ne]: null } },
-    include: [{ model: User, as: 'doctor', attributes: ['name'] }],
-    group: ['doctorId', 'doctor.id'],
+    include: [{ model: Doctor, attributes: ['name'] }],
+    group: ['doctorId', 'Doctor.id'],
     order: [[sequelize.literal('totalRevenue'), 'DESC']],
     raw: true,
   });
