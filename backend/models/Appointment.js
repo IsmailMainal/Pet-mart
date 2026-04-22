@@ -7,7 +7,7 @@ const Appointment = sequelize.define('Appointment', {
   status: { type: DataTypes.ENUM('Pending', 'Confirmed', 'Completed', 'Cancelled'), defaultValue: 'Pending' },
   reason: { type: DataTypes.STRING },
   userId: { type: DataTypes.INTEGER, allowNull: false },
-  doctorId: { type: DataTypes.INTEGER, allowNull: false }
+  doctorId: { type: DataTypes.INTEGER, allowNull: true }
 });
 
 module.exports = Appointment;

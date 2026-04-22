@@ -14,7 +14,7 @@ const Invoice = sequelize.define('Invoice', {
   couponCode: { type: DataTypes.STRING, allowNull: true },
   paymentMode: { type: DataTypes.ENUM('CASH', 'ONLINE'), defaultValue: 'CASH' },
   utrNumber: { type: DataTypes.STRING, allowNull: true },
-  createdBy: { type: DataTypes.INTEGER, allowNull: false },
+  createdBy: { type: DataTypes.INTEGER, allowNull: true },
   userId: { type: DataTypes.INTEGER, allowNull: true }, // Link to customer user
   doctorId: { type: DataTypes.INTEGER, allowNull: true }, // Assigned doctor
   doctorCharges: { type: DataTypes.DECIMAL(10, 2), defaultValue: 0 }
