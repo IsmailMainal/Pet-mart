@@ -2,7 +2,11 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 
 const api = axios.create({
+<<<<<<< HEAD
   baseURL: import.meta.env.VITE_API_URL || 'https://pet-shop-xa1r.onrender.com/api'
+=======
+  baseURL: import.meta.env.VITE_API_URL || 'https://pet-shop-xa1r.onrender.com'
+>>>>>>> 18f6d0aa7dcb8c55223c17c07fcc7d6a8569d7b9
 });
 
 api.interceptors.request.use(config => {
