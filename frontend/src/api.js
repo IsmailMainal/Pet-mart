@@ -26,4 +26,11 @@ api.interceptors.response.use(
   }
 );
 
+export const getFileUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  const baseUrl = (import.meta.env.VITE_API_URL || 'https://pet-shop-xa1r.onrender.com/api').replace('/api', '');
+  return `${baseUrl}${path}`;
+};
+
 export default api;

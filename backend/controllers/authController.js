@@ -54,7 +54,7 @@ exports.register = catchAsync(async (req, res, next) => {
     phone,
     password: hashedPassword, 
     role: 'customer',
-    profileImage: req.file ? req.file.path : null
+    profileImage: req.file ? `/uploads/${req.file.filename}` : null
   });
   
   const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '1d' });

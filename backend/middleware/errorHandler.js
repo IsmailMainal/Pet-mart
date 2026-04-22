@@ -29,10 +29,10 @@ const errorHandler = (err, req, res, next) => {
     });
   }
   // Multer & Upload Errors
-  if (err.name === 'MulterError' || err.message === 'Only images are allowed!' || err.message?.includes('Cloudinary')) {
+  if (err.name === 'MulterError' || err.message?.includes('allowed') || err.message?.includes('storage')) {
     return res.status(400).json({
       error: 'Upload failed',
-      message: err.message || 'Image storage service error. Check API credentials.'
+      message: err.message || 'Image storage error. Check folder permissions.'
     });
   }
 

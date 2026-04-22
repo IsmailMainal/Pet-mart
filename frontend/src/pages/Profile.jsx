@@ -3,7 +3,7 @@ import { AuthContext } from '../AuthContext';
 import { useToast } from '../components/Toast';
 import { Button, Card, Input, Modal, ConfirmModal, PageHeader, Skeleton, Badge, useLoadingMessage } from '../components/UI';
 import { User as UserIcon, Mail, Phone, Calendar, Shield, Upload, Lock, Trash2, Camera } from 'lucide-react';
-import api from '../api';
+import api, { getFileUrl } from '../api';
 
 const Profile = () => {
   const { user, setUser, logout, refreshUser } = useContext(AuthContext);
@@ -109,7 +109,7 @@ const Profile = () => {
                 <div className="w-full h-full rounded-[2.2rem] bg-stone-100 flex items-center justify-center overflow-hidden relative">
                   {user.profileImage || preview ? (
                     <img 
-                      src={preview || user.profileImage} 
+                      src={preview || getFileUrl(user.profileImage)} 
                       alt={user.name} 
                       className="w-full h-full object-cover" 
                     />

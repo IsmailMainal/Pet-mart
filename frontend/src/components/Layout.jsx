@@ -3,11 +3,11 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import {
   LayoutDashboard, ShoppingBag, Calendar, FileText,
-  LogOut, Users, Menu, X, PawPrint, ChevronRight, Heart, Activity, Tag, Bell, Stethoscope
+  LogOut, Users, Menu, X, PawPrint, ChevronRight, Heart, Activity, Tag, Bell, Stethoscope, BarChart3
 } from 'lucide-react';
 import { useNotifications as useToastHistory } from './Toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../api';
+import api, { getFileUrl } from '../api';
 
 const NotificationBell = () => {
   const queryClient = useQueryClient();
@@ -117,6 +117,7 @@ const navLinks = (role) => {
     { to: '/dashboard/my-bills', icon: FileText, label: 'My Bills', roles: ['customer'] },
     { to: '/dashboard/coupons', icon: Tag, label: 'Coupons', roles: ['admin'] },
     { to: '/dashboard/users', icon: Users, label: 'Users', roles: ['admin'] },
+    { to: '/dashboard/reports', icon: BarChart3, label: 'Reports', roles: ['admin', 'receptionist'] },
     { to: '/dashboard/logs', icon: Activity, label: 'Audit Logs', roles: ['admin'] },
   ];
   return all.filter(l => l.roles.includes(role));
@@ -174,7 +175,7 @@ const Layout = () => {
         <div className="flex items-center gap-3 px-3 py-2 mb-2">
           <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 text-sm font-bold shrink-0 overflow-hidden ring-2 ring-white">
             {user?.profileImage ? (
-              <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" />
+              <img src={getFileUrl(user.profileImage)} alt={user.name} className="w-full h-full object-cover" />
             ) : (
               user?.name?.charAt(0).toUpperCase()
             )}
@@ -240,7 +241,7 @@ const Layout = () => {
               </div>
               <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 text-xs font-bold ring-2 ring-white overflow-hidden">
                 {user?.profileImage ? (
-                  <img src={user.profileImage} alt={user.name} className="w-full h-full object-cover" />
+                  <img src={getFileUrl(user.profileImage)} alt={user.name} className="w-full h-full object-cover" />
                 ) : (
                   user?.name?.charAt(0).toUpperCase()
                 )}

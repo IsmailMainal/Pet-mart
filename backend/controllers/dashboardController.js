@@ -111,6 +111,33 @@ exports.getStats = catchAsync(async (req, res, next) => {
     activeCoupons = 0;
   }
 
+  // --- Doctor performance (consultation fees) ---
+  const doctorPerformance = await Invoice.findAll({
+    attributes: [
+      'doctorId',
+      [sequelize.fn('SUM', sequelize.col('doctorCharges')), 'totalDoctorCharges'],
+      [sequelize.fn('SUM', sequelize.col('total')), 'totalRevenue'],
+      [sequelize.fn('COUNT', sequelize.col('id')), 'invoiceCount'],
+    ],
+    where: { status: 'Paid', doctorId: { [Op.ne]: null } },
+    include: [{ model: User, as: 'doctor', attributes: ['name'] }],
+    group: ['doctorId', 'doctor.id'],
+    order: [[sequelize.literal('totalRevenue'), 'DESC']],
+    raw: true,
+  });
+
+  // --- Revenue Trend (Last 6 months) ---
+  const revenueTrend = await Invoice.findAll({
+    attributes: [
+      [sequelize.fn('DATE_FORMAT', sequelize.col('Invoice.createdAt'), '%Y-%m'), 'month'],
+      [sequelize.fn('SUM', sequelize.col('total')), 'revenue'],
+    ],
+    where: { status: 'Paid', createdAt: { [Op.gte]: new Date(today.getFullYear(), today.getMonth() - 5, 1) } },
+    group: [sequelize.fn('DATE_FORMAT', sequelize.col('Invoice.createdAt'), '%Y-%m')],
+    order: [[sequelize.literal('month'), 'ASC']],
+    raw: true,
+  });
+
   res.json({
     totalProducts,
     totalAppointments,
@@ -127,5 +154,7 @@ exports.getStats = catchAsync(async (req, res, next) => {
     topProducts,
     topServices,
     activeCoupons,
+    doctorPerformance,
+    revenueTrend,
   });
 });

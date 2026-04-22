@@ -112,7 +112,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
   }
 
   if (req.file) {
-    updateData.profileImage = req.file.path;
+    updateData.profileImage = `/uploads/${req.file.filename}`;
   }
 
   await user.update(updateData);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../api';
+import api, { getFileUrl } from '../api';
 import { AuthContext } from '../AuthContext';
 import { useToast } from '../components/Toast';
 import {
@@ -25,7 +25,7 @@ const ImageCarousel = ({ images, className = '' }) => {
     <div className={`relative overflow-hidden ${className}`}>
       <img
         key={images[idx].id}
-        src={images[idx].imageUrl}
+        src={getFileUrl(images[idx].imageUrl)}
         alt={`img-${idx}`}
         crossOrigin="anonymous"
         onError={(e) => {
@@ -134,7 +134,7 @@ const ProductForm = ({ product, onClose }) => {
           <div className="flex flex-wrap gap-2">
             {product.ProductImages.map(img => (
               <div key={img.id} className="w-14 h-14 rounded-lg overflow-hidden border border-stone-200 relative group/img">
-                <img src={img.imageUrl} alt="" className="w-full h-full object-cover" />
+                <img src={getFileUrl(img.imageUrl)} alt="" className="w-full h-full object-cover" />
                 <button type="button" onClick={async () => { 
                   try {
                     await api.delete(`/products/images/${img.id}`); 
@@ -235,7 +235,7 @@ const ProductDetail = ({ product, onClose, onEdit, canEdit }) => (
             <p className="text-xs text-stone-400 font-medium mb-2">All Images ({product.ProductImages.length})</p>
             <div className="flex flex-wrap gap-2">
               {product.ProductImages.map(img => (
-                <img key={img.id} src={img.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover border border-stone-200" />
+                <img key={img.id} src={getFileUrl(img.imageUrl)} alt="" className="w-14 h-14 rounded-xl object-cover border border-stone-200" />
               ))}
             </div>
           </div>
