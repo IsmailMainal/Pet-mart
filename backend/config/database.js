@@ -10,6 +10,12 @@ const sequelize = new Sequelize(
     port: process.env.DB_PORT || 3306,
     dialect: process.env.DB_DIALECT || 'mysql',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    dialectOptions: process.env.DB_SSL === 'true' ? {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false // Often needed for hosted DBs like Aiven/DigitalOcean
+      }
+    } : {}
   }
 );
 
