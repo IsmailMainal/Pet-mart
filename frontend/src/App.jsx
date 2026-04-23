@@ -20,6 +20,7 @@ import Profile from './pages/Profile';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Reports from './pages/Reports';
+import DoctorRevenue from './pages/DoctorRevenue';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const PrivateRoute = ({ children, roles }) => {
@@ -53,6 +54,7 @@ function App() {
             <Route path="logs" element={<PrivateRoute roles={['admin']}><Logs /></PrivateRoute>} />
             <Route path="coupons" element={<PrivateRoute roles={['admin']}><Coupons /></PrivateRoute>} />
             <Route path="reports" element={<PrivateRoute roles={['admin', 'receptionist']}><Reports /></PrivateRoute>} />
+            <Route path="revenue" element={<PrivateRoute roles={['admin']}><DoctorRevenue /></PrivateRoute>} />
             <Route path="my-bills" element={<PrivateRoute roles={['customer']}><MyInvoices /></PrivateRoute>} />
             <Route path="profile" element={<Profile />} />
           </Route>

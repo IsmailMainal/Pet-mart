@@ -37,6 +37,12 @@ exports.getProducts = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.getProductById = catchAsync(async (req, res, next) => {
+  const product = await Product.findByPk(req.params.id, { include: [ProductImage] });
+  if (!product) return res.status(404).json({ error: 'Product not found' });
+  res.json(product);
+});
+
 exports.createProduct = catchAsync(async (req, res, next) => {
   const product = await Product.create({
     name: req.body.name,

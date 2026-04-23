@@ -9,6 +9,19 @@ exports.getAppointments = catchAsync(async (req, res, next) => {
   res.json(appointments);
 });
 
+exports.getAppointmentById = catchAsync(async (req, res, next) => {
+  const appointment = await Appointment.findByPk(req.params.id, { 
+    include: [{model: User, as: 'customer'}, Doctor] 
+  });
+  if (!appointment) return res.status(404).json({ error: 'Appointment not found' });
+  
+  if (req.user.role === 'customer' && appointment.userId !== req.user.id) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  
+  res.json(appointment);
+});
+
 exports.createAppointment = catchAsync(async (req, res, next) => {
   const { doctorId, date, time } = req.body;
   

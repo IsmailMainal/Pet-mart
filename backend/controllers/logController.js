@@ -6,7 +6,12 @@ exports.getLogs = catchAsync(async (req, res, next) => {
   const limit = parseInt(req.query.limit) || 50;
   const offset = (page - 1) * limit;
 
+  const { entity } = req.query;
+  const where = {};
+  if (entity && entity !== 'all') where.entity = entity;
+
   const { count, rows } = await ActivityLog.findAndCountAll({
+    where,
     include: [{ model: User, attributes: ['name', 'email'], required: false }],
     order: [['createdAt', 'DESC']],
     limit,

@@ -10,6 +10,7 @@ const InvoiceItem = require('./InvoiceItem');
 const ActivityLog = require('./ActivityLog');
 const Coupon = require('./Coupon');
 const Notification = require('./Notification');
+const Settlement = require('./Settlement');
 
 // Relationships
 
@@ -56,6 +57,10 @@ ActivityLog.belongsTo(User, { foreignKey: 'userId' });
 User.hasMany(Notification, { foreignKey: 'userId', onDelete: 'CASCADE' });
 Notification.belongsTo(User, { foreignKey: 'userId' });
 
+// Doctor - Settlements
+Doctor.hasMany(Settlement, { foreignKey: 'doctorId', onDelete: 'CASCADE' });
+Settlement.belongsTo(Doctor, { foreignKey: 'doctorId' });
+
 module.exports = {
   sequelize,
   User,
@@ -68,5 +73,6 @@ module.exports = {
   InvoiceItem,
   ActivityLog,
   Coupon,
-  Notification
+  Notification,
+  Settlement
 };

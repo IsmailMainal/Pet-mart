@@ -34,6 +34,12 @@ exports.getServices = catchAsync(async (req, res, next) => {
   });
 });
 
+exports.getServiceById = catchAsync(async (req, res, next) => {
+  const service = await Service.findByPk(req.params.id);
+  if (!service) return res.status(404).json({ error: 'Service not found' });
+  res.json(service);
+});
+
 exports.createService = catchAsync(async (req, res, next) => {
   const { name, description, price } = req.body;
   const service = await Service.create({ name, description, price });
@@ -86,6 +92,12 @@ exports.getDoctors = catchAsync(async (req, res, next) => {
       limit
     }
   });
+});
+
+exports.getDoctorById = catchAsync(async (req, res, next) => {
+  const doctor = await Doctor.findByPk(req.params.id);
+  if (!doctor) return res.status(404).json({ error: 'Doctor not found' });
+  res.json(doctor);
 });
 
 exports.createDoctor = catchAsync(async (req, res, next) => {

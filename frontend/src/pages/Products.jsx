@@ -273,6 +273,12 @@ const Products = () => {
     }
   });
 
+  const { data: fullProductDetail } = useQuery({
+    queryKey: ['product', detailProduct?.id],
+    queryFn: () => api.get(`/products/${detailProduct.id}`).then(r => r.data),
+    enabled: !!detailProduct,
+  });
+
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/products/${id}`),
     onSuccess: () => {
@@ -365,7 +371,7 @@ const Products = () => {
       )}
 
       {/* Modals */}
-      <ProductDetail product={detailProduct} onClose={() => setDetailProduct(null)} onEdit={openEdit} canEdit={isAdmin} />
+      <ProductDetail product={fullProductDetail || detailProduct} onClose={() => setDetailProduct(null)} onEdit={openEdit} canEdit={isAdmin} />
 
       <Modal isOpen={formOpen} onClose={() => setFormOpen(false)} title={editProduct ? 'Edit Product' : 'New Product'}>
         <ProductForm

@@ -166,6 +166,12 @@ const Appointments = () => {
     }
   });
 
+  const { data: fullAptDetail } = useQuery({
+    queryKey: ['appointment', detailApt?.id],
+    queryFn: () => api.get(`/appointments/${detailApt.id}`).then(r => r.data),
+    enabled: !!detailApt,
+  });
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status }) => api.put(`/appointments/${id}`, { status }),
     onSuccess: (_, variables) => {
@@ -299,7 +305,7 @@ const Appointments = () => {
       </Modal>
 
       <AppointmentDetail
-        apt={detailApt}
+        apt={fullAptDetail || detailApt}
         onClose={() => setDetailApt(null)}
         canEdit={isStaff || detailApt?.userId === user?.id}
         onStatusChange={updateStatus}

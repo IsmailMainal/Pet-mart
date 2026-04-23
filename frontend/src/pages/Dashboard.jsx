@@ -6,7 +6,8 @@ import { Card, Skeleton, Badge, EmptyState } from '../components/UI';
 import { useQuery } from '@tanstack/react-query';
 import {
   ShoppingBag, Calendar, FileText, ArrowRight, 
-  CheckCircle, Clock, XCircle, PawPrint, Heart, CreditCard
+  CheckCircle, Clock, XCircle, PawPrint, Heart, CreditCard,
+  User, Activity
 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../utils/format';
 
@@ -192,10 +193,18 @@ const StaffDashboard = ({ user }) => {
 
   const { data: logs = [], isLoading: logsLoading } = useQuery({
     queryKey: ['recent-logs'],
-    queryFn: () => api.get('/logs').then(r => r.data.slice(0, 8)),
+    queryFn: () => api.get('/logs').then(r => (r.data?.logs || []).slice(0, 8)),
     enabled: user.role === 'admin',
     staleTime: 30000,
   });
+
+  const CATEGORY_ICONS = {
+    Product:     { color: 'amber',  icon: <ShoppingBag size={14} /> },
+    Appointment: { color: 'blue',   icon: <Calendar size={14} /> },
+    Invoice:     { color: 'green',  icon: <CreditCard size={14} /> },
+    User:        { color: 'purple', icon: <User size={14} /> },
+    System:      { color: 'stone',  icon: <Activity size={14} /> },
+  };
 
   const totalInvoiceCount = stats?.invoiceStatuses?.reduce((s, r) => s + parseInt(r.count), 0) || 1;
   const now = new Date();
@@ -253,12 +262,22 @@ const StaffDashboard = ({ user }) => {
             </div>
             {logsLoading ? <div className="p-5 space-y-4">{Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-10 rounded-xl" />)}</div> : (
               <div className="divide-y divide-stone-50">
-                {logs.map(log => (
-                  <div key={log.id} className="px-5 py-3 flex items-start gap-3 hover:bg-stone-50 transition-colors">
-                    <div className="w-8 h-8 rounded-full bg-lime-50 text-lime-700 flex items-center justify-center font-bold text-xs shrink-0">{log.User?.name?.charAt(0)}</div>
-                    <div><p className="text-sm text-stone-800 font-medium">{log.details}</p><p className="text-[10px] text-stone-400">{log.User?.name} • {formatDate(log.createdAt)}</p></div>
-                  </div>
-                ))}
+                {logs.map(log => {
+                  const cfg = CATEGORY_ICONS[log.entity] || CATEGORY_ICONS.System;
+                  return (
+                    <div key={log.id} className="px-5 py-3.5 flex items-start gap-4 hover:bg-stone-50 transition-colors group">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-${cfg.color}-50 text-${cfg.color}-600 transition-transform group-hover:scale-110`}>
+                        {cfg.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-stone-800 font-bold leading-tight line-clamp-1">{log.details}</p>
+                        <p className="text-[10px] text-stone-400 font-medium mt-1 uppercase tracking-wider">
+                          {log.User?.name || 'System'} • {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </Card>

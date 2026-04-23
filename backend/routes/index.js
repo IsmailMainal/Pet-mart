@@ -9,13 +9,14 @@ const productController = require('../controllers/productController');
 const appointmentController = require('../controllers/appointmentController');
 const invoiceController = require('../controllers/invoiceController');
 const { 
-  getServices, createService, updateService, deleteService,
-  getDoctors, createDoctor, updateDoctor, deleteDoctor 
+  getServices, getServiceById, createService, updateService, deleteService,
+  getDoctors, getDoctorById, createDoctor, updateDoctor, deleteDoctor 
 } = require('../controllers/generalController');
 const dashboardController = require('../controllers/dashboardController');
 const logController = require('../controllers/logController');
 const couponController = require('../controllers/couponController');
 const notificationController = require('../controllers/notificationController');
+const revenueController = require('../controllers/revenueController');
 const validate = require('../middleware/validate');
 const { 
   authSchema, productSchema, serviceSchema, 
@@ -53,6 +54,7 @@ router.get('/customers', authenticate, authorize(['admin', 'receptionist']), use
 router.post('/users', authenticate, authorize(['admin']), validate(authSchema), userController.createUser);
 
 // Admin: User Management — individual (dynamic :id after static routes)
+router.get('/users/:id', authenticate, authorize(['admin']), userController.getUserById);
 router.put('/users/:id', authenticate, authorize(['admin']), validate(authSchema), userController.updateUser);
 router.delete('/users/:id', authenticate, authorize(['admin']), userController.deleteUser);
 
@@ -61,6 +63,7 @@ router.delete('/products/images/:imageId', authenticate, authorize(['admin']), p
 
 // Products CRUD
 router.get('/products', productController.getProducts);
+router.get('/products/:id', productController.getProductById);
 router.post(
   '/products',
   authenticate,
@@ -84,18 +87,21 @@ router.get('/products/:id/history', authenticate, authorize(['admin', 'reception
 
 // Services
 router.get('/services', getServices);
+router.get('/services/:id', getServiceById);
 router.post('/services', authenticate, authorize(['admin']), validate(serviceSchema), createService);
 router.put('/services/:id', authenticate, authorize(['admin']), validate(serviceSchema), updateService);
 router.delete('/services/:id', authenticate, authorize(['admin']), deleteService);
 
 // Doctors
 router.get('/doctors', getDoctors);
+router.get('/doctors/:id', getDoctorById);
 router.post('/doctors', authenticate, authorize(['admin']), createDoctor);
 router.put('/doctors/:id', authenticate, authorize(['admin']), updateDoctor);
 router.delete('/doctors/:id', authenticate, authorize(['admin']), deleteDoctor);
 
 // Appointments
 router.get('/appointments', authenticate, appointmentController.getAppointments);
+router.get('/appointments/:id', authenticate, appointmentController.getAppointmentById);
 router.post('/appointments', authenticate, validate(appointmentSchema), appointmentController.createAppointment);
 router.put('/appointments/:id', authenticate, authorize(['admin', 'receptionist', 'customer']), appointmentController.updateAppointment);
 router.delete('/appointments/:id', authenticate, appointmentController.deleteAppointment);
@@ -112,6 +118,7 @@ router.get('/dashboard/stats', authenticate, authorize(['admin', 'receptionist']
 
 // Coupons
 router.get('/coupons', authenticate, authorize(['admin', 'receptionist']), couponController.getCoupons);
+router.get('/coupons/:id', authenticate, authorize(['admin', 'receptionist']), couponController.getCouponById);
 router.post('/coupons', authenticate, authorize(['admin']), couponController.createCoupon);
 router.put('/coupons/:id', authenticate, authorize(['admin']), couponController.updateCoupon);
 router.delete('/coupons/:id', authenticate, authorize(['admin']), couponController.deleteCoupon);
@@ -125,5 +132,10 @@ router.get('/notifications', authenticate, notificationController.getNotificatio
 router.put('/notifications/read-all', authenticate, notificationController.markAllAsRead);
 router.put('/notifications/:id/read', authenticate, notificationController.markAsRead);
 router.delete('/notifications', authenticate, notificationController.clearNotifications);
+
+// Doctor Revenue Management (Admin Only)
+router.get('/revenue/doctors', authenticate, authorize(['admin']), revenueController.getDoctorRevenue);
+router.get('/revenue/doctors/:doctorId/settlements', authenticate, authorize(['admin']), revenueController.getDoctorSettlements);
+router.post('/revenue/settle', authenticate, authorize(['admin']), revenueController.createSettlement);
 
 module.exports = router;

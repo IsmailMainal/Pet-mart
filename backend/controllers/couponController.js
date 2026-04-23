@@ -8,6 +8,12 @@ exports.getCoupons = catchAsync(async (req, res) => {
   res.json(coupons);
 });
 
+exports.getCouponById = catchAsync(async (req, res) => {
+  const coupon = await Coupon.findByPk(req.params.id);
+  if (!coupon) return res.status(404).json({ error: 'Coupon not found' });
+  res.json(coupon);
+});
+
 exports.createCoupon = catchAsync(async (req, res) => {
   const coupon = await Coupon.create(req.body);
   logActivity(req.user.id, 'create', 'Coupon', coupon.id, `Created coupon ${coupon.code}`);

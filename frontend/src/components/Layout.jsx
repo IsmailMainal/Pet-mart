@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import {
   LayoutDashboard, ShoppingBag, Calendar, FileText,
-  LogOut, Users, Menu, X, PawPrint, ChevronRight, Heart, Activity, Tag, Bell, Stethoscope, BarChart3
+  LogOut, Users, Menu, X, PawPrint, ChevronRight, Heart, Activity, Tag, Bell, Stethoscope, BarChart3, DollarSign
 } from 'lucide-react';
 import { useNotifications as useToastHistory } from './Toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -118,6 +118,7 @@ const navLinks = (role) => {
     { to: '/dashboard/coupons', icon: Tag, label: 'Coupons', roles: ['admin'] },
     { to: '/dashboard/users', icon: Users, label: 'Users', roles: ['admin'] },
     { to: '/dashboard/reports', icon: BarChart3, label: 'Reports', roles: ['admin', 'receptionist'] },
+    { to: '/dashboard/revenue', icon: DollarSign, label: 'Doctor Revenue', roles: ['admin'] },
     { to: '/dashboard/logs', icon: Activity, label: 'Audit Logs', roles: ['admin'] },
   ];
   return all.filter(l => l.roles.includes(role));
