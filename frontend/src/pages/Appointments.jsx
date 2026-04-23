@@ -2,8 +2,8 @@ import React, { useState, useContext } from 'react';
 import api from '../api';
 import { AuthContext } from '../AuthContext';
 import { useToast } from '../components/Toast';
-import { Button, Card, Input, Textarea, Select, Modal, ConfirmModal, PageHeader, SearchBar, Badge, EmptyState, Skeleton, useLoadingMessage } from '../components/UI';
-import { Plus, Calendar, Clock, User, Stethoscope, FileText, Trash2 } from 'lucide-react';
+import { Button, Card, Input, Textarea, Select, Modal, ConfirmModal, PageHeader, SearchBar, Badge, EmptyState, Skeleton, useLoadingMessage, Pagination } from '../components/UI';
+import { Plus, Calendar, Clock, User, Stethoscope, FileText, Trash2, Filter, Download } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { formatDate } from '../utils/format';
 
@@ -16,7 +16,7 @@ const StatusBadge = ({ status }) => (
 );
 
 // ── Detail View ───────────────────────────────────────────────────────────────
-const AppointmentDetail = ({ apt, onClose, canEdit, onStatusChange }) => {
+const AppointmentDetail = ({ apt, onClose, canEdit, onStatusChange, onReschedule }) => {
   if (!apt) return null;
   const timeline = ['Pending', 'Confirmed', 'Completed'];
   const currentIdx = timeline.indexOf(apt.status);
@@ -75,7 +75,7 @@ const AppointmentDetail = ({ apt, onClose, canEdit, onStatusChange }) => {
         )}
 
         {canEdit && (
-          <div>
+          <div className="pt-4 border-t border-stone-100">
             <p className="text-sm font-medium text-stone-700 mb-2">Update Status</p>
             <div className="flex gap-2 flex-wrap">
               {['Pending', 'Confirmed', 'Completed', 'Cancelled'].map(s => (
@@ -88,6 +88,14 @@ const AppointmentDetail = ({ apt, onClose, canEdit, onStatusChange }) => {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {onReschedule && apt.status === 'Pending' && (
+          <div className="pt-4">
+            <Button onClick={() => { onReschedule(apt); onClose(); }} variant="secondary" className="w-full">
+              Reschedule Appointment
+            </Button>
           </div>
         )}
       </div>
@@ -137,12 +145,57 @@ const BookForm = ({ doctors, onClose }) => {
   );
 };
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+const EditForm = ({ apt, doctors, onClose }) => {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({ 
+    doctorId: apt?.doctorId || '', 
+    date: apt?.date ? new Date(apt.date).toISOString().split('T')[0] : '', 
+    time: apt?.time || '', 
+    reason: apt?.reason || '' 
+  });
+  const loadingMsg = useLoadingMessage();
+
+  const mutation = useMutation({
+    mutationFn: (data) => api.put(`/appointments/${apt.id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      toast('success', 'Appointment rescheduled successfully');
+      onClose();
+    },
+    onError: (err) => toast('error', err.response?.data?.message || 'Update failed')
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    mutation.mutate(form);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <Select label="Select Doctor" value={form.doctorId} onChange={e => setForm({...form, doctorId: e.target.value})} required disabled>
+        {doctors.map(d => <option key={d.id} value={d.id}>{d.name} – {d.specialization}</option>)}
+      </Select>
+      <div className="grid grid-cols-2 gap-4">
+        <Input label="Date" type="date" required value={form.date} onChange={e => setForm({...form, date: e.target.value})} min={new Date().toISOString().split('T')[0]} />
+        <Input label="Time" type="time" required value={form.time} onChange={e => setForm({...form, time: e.target.value})} />
+      </div>
+      <Textarea label="Reason for Visit" rows={3} required value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} />
+      <div className="flex gap-3 pt-2">
+        <Button type="button" variant="secondary" className="flex-1" onClick={onClose}>Cancel</Button>
+        <Button type="submit" className="flex-1" disabled={mutation.isPending}>{mutation.isPending ? loadingMsg : 'Update Appointment'}</Button>
+      </div>
+    </form>
+  );
+};
 const Appointments = () => {
   const { user } = useContext(AuthContext);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [page, setPage] = useState(1);
   const [bookOpen, setBookOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editApt, setEditApt] = useState(null);
   const [detailApt, setDetailApt] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
@@ -150,13 +203,16 @@ const Appointments = () => {
   const queryClient = useQueryClient();
   const isStaff = user?.role !== 'customer';
 
-  const { data: appointments = [], isLoading } = useQuery({
-    queryKey: ['appointments'],
+  const { data, isLoading } = useQuery({
+    queryKey: ['appointments', page],
     queryFn: async () => {
-      const res = await api.get('/appointments');
+      const res = await api.get(`/appointments?page=${page}`);
       return res.data;
     }
   });
+
+  const appointments = data?.appointments || [];
+  const meta = data?.meta || { totalCount: 0, totalPages: 1, currentPage: 1 };
 
   const { data: doctors = [] } = useQuery({
     queryKey: ['doctors'],
@@ -196,6 +252,25 @@ const Appointments = () => {
 
   const updateStatus = (id, status) => statusMutation.mutate({ id, status });
 
+  const handleExport = async () => {
+    try {
+      toast('info', 'Generating export...');
+      const res = await api.get('/export/appointments', { 
+        params: { status: statusFilter },
+        responseType: 'blob' 
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `appointments_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      toast('error', 'Failed to generate export');
+    }
+  };
+
   const appointmentsArr = Array.isArray(appointments) ? appointments : [];
   const filtered = appointmentsArr.filter(a => {
     const matchSearch = (a.customer?.name || '').toLowerCase().includes(search.toLowerCase())
@@ -209,10 +284,15 @@ const Appointments = () => {
     <div>
       <PageHeader
         title="Appointments"
-        description={`${appointmentsArr.length} total appointments`}
-        action={user?.role === 'customer' && (
-          <Button onClick={() => setBookOpen(true)}><Plus size={16} /> Book Appointment</Button>
-        )}
+        description={`${meta.totalCount} total appointments`}
+        action={
+          <div className="flex gap-2">
+            {isStaff && <Button variant="outline" onClick={handleExport}><Download size={16} /> Export CSV</Button>}
+            {user?.role === 'customer' && (
+              <Button onClick={() => setBookOpen(true)}><Plus size={16} /> Book Appointment</Button>
+            )}
+          </div>
+        }
       />
 
       {/* Filters */}
@@ -299,16 +379,31 @@ const Appointments = () => {
         </Card>
       )}
 
+      {meta.totalPages > 1 && (
+        <div className="mt-6 flex justify-center">
+          <Pagination 
+            currentPage={meta.currentPage} 
+            totalPages={meta.totalPages} 
+            onPageChange={setPage} 
+          />
+        </div>
+      )}
+
       {/* Modals */}
       <Modal isOpen={bookOpen} onClose={() => setBookOpen(false)} title="Book Appointment">
         <BookForm doctors={doctors} onClose={() => setBookOpen(false)} />
       </Modal>
 
+      <Modal isOpen={editOpen} onClose={() => setEditOpen(false)} title="Reschedule Appointment">
+        <EditForm apt={editApt} doctors={doctors} onClose={() => setEditOpen(false)} />
+      </Modal>
+
       <AppointmentDetail
         apt={fullAptDetail || detailApt}
         onClose={() => setDetailApt(null)}
-        canEdit={isStaff || detailApt?.userId === user?.id}
+        canEdit={isStaff}
         onStatusChange={updateStatus}
+        onReschedule={user?.role === 'customer' ? (apt) => { setEditApt(apt); setEditOpen(true); } : null}
       />
 
       <ConfirmModal

@@ -17,6 +17,7 @@ const logController = require('../controllers/logController');
 const couponController = require('../controllers/couponController');
 const notificationController = require('../controllers/notificationController');
 const revenueController = require('../controllers/revenueController');
+const exportController = require('../controllers/exportController');
 const validate = require('../middleware/validate');
 const { 
   authSchema, productSchema, serviceSchema, 
@@ -137,5 +138,10 @@ router.delete('/notifications', authenticate, notificationController.clearNotifi
 router.get('/revenue/doctors', authenticate, authorize(['admin']), revenueController.getDoctorRevenue);
 router.get('/revenue/doctors/:doctorId/settlements', authenticate, authorize(['admin']), revenueController.getDoctorSettlements);
 router.post('/revenue/settle', authenticate, authorize(['admin']), revenueController.createSettlement);
+
+// Export routes
+router.get('/export/invoices', authenticate, authorize(['admin']), exportController.exportInvoices);
+router.get('/export/appointments', authenticate, authorize(['admin']), exportController.exportAppointments);
+router.get('/export/inventory', authenticate, authorize(['admin', 'receptionist']), exportController.exportInventory);
 
 module.exports = router;

@@ -4,9 +4,30 @@ const catchAsync = require('../utils/catchAsync');
 const { notify, notifyAdmins } = require('../utils/notifier');
 
 exports.getAppointments = catchAsync(async (req, res, next) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 50;
+  const offset = (page - 1) * limit;
+
   const where = req.user.role === 'customer' ? { userId: req.user.id } : {};
-  const appointments = await Appointment.findAll({ where, include: [{model: User, as: 'customer'}, Doctor] });
-  res.json(appointments);
+  
+  const { count, rows } = await Appointment.findAndCountAll({ 
+    where, 
+    include: [{model: User, as: 'customer'}, Doctor],
+    order: [['date', 'DESC'], ['time', 'DESC']],
+    limit,
+    offset,
+    distinct: true
+  });
+
+  res.json({
+    appointments: rows,
+    meta: {
+      totalCount: count,
+      totalPages: Math.ceil(count / limit),
+      currentPage: page,
+      limit
+    }
+  });
 });
 
 exports.getAppointmentById = catchAsync(async (req, res, next) => {
@@ -67,11 +88,12 @@ exports.updateAppointment = catchAsync(async (req, res, next) => {
   }
 
   try {
+    const oldStatus = appointment.status;
     // Only update fields that are provided
     await appointment.update(req.body);
     
     // Notify customer if status changed
-    if (req.body.status && req.body.status !== appointment.status) {
+    if (req.body.status && req.body.status !== oldStatus) {
       await notify(appointment.userId, 'Appointment Updated', `Your appointment status has been updated to: ${req.body.status}`, 'info', '/appointments');
     }
     

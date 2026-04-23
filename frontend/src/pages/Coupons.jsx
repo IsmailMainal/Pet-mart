@@ -20,6 +20,7 @@ const CouponForm = ({ coupon, onClose }) => {
     minPurchase: coupon?.minPurchase || 0,
     expiryDate: coupon?.expiryDate ? coupon.expiryDate.split('T')[0] : '',
     isActive: coupon?.isActive !== undefined ? coupon.isActive : true,
+    maxUsage: coupon?.maxUsage || '',
   });
 
   const mutation = useMutation({
@@ -39,7 +40,14 @@ const CouponForm = ({ coupon, onClose }) => {
     if (!form.code.trim()) return toast('error', 'Coupon code is required');
     if (!form.value || parseFloat(form.value) <= 0) return toast('error', 'Value must be greater than 0');
     if (form.type === 'PERCENTAGE' && parseFloat(form.value) > 100) return toast('error', 'Percentage cannot exceed 100');
-    mutation.mutate({ ...form, value: parseFloat(form.value), minPurchase: parseFloat(form.minPurchase) || 0 });
+    
+    const payload = { 
+      ...form, 
+      value: parseFloat(form.value), 
+      minPurchase: parseFloat(form.minPurchase) || 0,
+      maxUsage: form.maxUsage ? parseInt(form.maxUsage) : null
+    };
+    mutation.mutate(payload);
   };
 
   return (
@@ -123,6 +131,22 @@ const CouponForm = ({ coupon, onClose }) => {
           </div>
           <p className="text-[10px] text-stone-400 mt-1 ml-1">Leave blank for no expiry.</p>
         </div>
+      </div>
+
+      {/* Max Usage */}
+      <div>
+        <label className="text-xs font-bold text-stone-500 uppercase tracking-widest ml-1 mb-1 block">Max Usage Limit</label>
+        <div className="relative">
+          <input
+            type="number"
+            min="1"
+            value={form.maxUsage}
+            onChange={e => setForm({ ...form, maxUsage: e.target.value })}
+            placeholder="No limit"
+            className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-lime-500 bg-white"
+          />
+        </div>
+        <p className="text-[10px] text-stone-400 mt-1 ml-1">Total number of times this coupon can be redeemed across all customers.</p>
       </div>
 
       {/* Active Toggle */}
@@ -251,13 +275,27 @@ const Coupons = () => {
                   </div>
 
                   {/* Expiry */}
-                  <div className="flex items-center gap-1.5 text-xs mb-4">
+                  <div className="flex items-center gap-1.5 text-xs mb-3">
                     <Calendar size={11} className={expired ? 'text-red-400' : 'text-stone-300'} />
                     <span className={expired ? 'text-red-500 font-semibold' : 'text-stone-400'}>
                       {c.expiryDate
                         ? `${expired ? 'Expired' : 'Expires'} ${new Date(c.expiryDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
                         : 'No expiry'}
                     </span>
+                  </div>
+
+                  {/* Usage Tracking */}
+                  <div className="mb-4 flex items-center justify-between bg-stone-50 rounded-xl p-3 border border-stone-100">
+                    <div>
+                      <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Redemptions</p>
+                      <p className="text-sm font-black text-stone-700">{c.usageCount || 0} used</p>
+                    </div>
+                    {c.maxUsage && (
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest">Limit</p>
+                        <p className="text-sm font-black text-stone-700">{c.maxUsage}</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}

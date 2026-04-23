@@ -8,7 +8,7 @@ import {
   Button, Card, Input, Textarea, Modal, ConfirmModal,
   PageHeader, SearchBar, StockBadge, ProductCardSkeleton, EmptyState, Badge
 } from '../components/UI';
-import { Plus, Upload, Link as LinkIcon, Trash2, Pencil, ChevronLeft, ChevronRight, Image as ImageIcon, Clock } from 'lucide-react';
+import { Plus, Upload, Link as LinkIcon, Trash2, Pencil, ChevronLeft, ChevronRight, Image as ImageIcon, Clock, Download } from 'lucide-react';
 import StockHistoryDrawer from '../components/Product/StockHistoryDrawer';
 
 // ── Image Carousel ───────────────────────────────────────────────────────────
@@ -257,6 +257,22 @@ const Products = () => {
   const queryClient = useQueryClient();
   const isAdmin = user?.role === 'admin';
 
+  const handleExport = async () => {
+    try {
+      toast('info', 'Generating export...');
+      const res = await api.get('/export/inventory', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `inventory_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      toast('error', 'Failed to generate export');
+    }
+  };
+
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState('all');
   const [detailProduct, setDetailProduct] = useState(null);
@@ -309,7 +325,12 @@ const Products = () => {
       <PageHeader
         title="Products"
         description={`${Array.isArray(products) ? products.length : 0} products in inventory`}
-        action={isAdmin && <Button onClick={openCreate}><Plus size={16} /> Add Product</Button>}
+        action={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExport}><Download size={16} /> Export CSV</Button>
+            {isAdmin && <Button onClick={openCreate}><Plus size={16} /> Add Product</Button>}
+          </div>
+        }
       />
 
       {/* Filters */}

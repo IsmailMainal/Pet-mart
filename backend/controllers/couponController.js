@@ -55,6 +55,10 @@ exports.validateCoupon = catchAsync(async (req, res) => {
     return res.status(404).json({ error: 'Invalid or expired coupon code' });
   }
 
+  if (coupon.maxUsage && coupon.usageCount >= coupon.maxUsage) {
+    return res.status(400).json({ error: 'This coupon has reached its maximum usage limit' });
+  }
+
   if (amount < coupon.minPurchase) {
     return res.status(400).json({ error: `Minimum purchase of ₹${coupon.minPurchase} required for this coupon` });
   }

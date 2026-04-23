@@ -6,7 +6,7 @@ import { useToast } from '../components/Toast';
 import { 
   DollarSign, Wallet, History, Send, 
   Stethoscope, Calendar, Search, ArrowRight,
-  Filter, CheckCircle2, AlertCircle
+  Filter, CheckCircle2, AlertCircle, X
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../utils/format';
 
@@ -16,6 +16,7 @@ const DoctorRevenue = () => {
   const [search, setSearch] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [settleModal, setSettleModal] = useState(false);
+  const [historyModal, setHistoryModal] = useState(false);
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('CASH');
   const [remarks, setRemarks] = useState('');
@@ -23,6 +24,12 @@ const DoctorRevenue = () => {
   const { data: report = [], isLoading } = useQuery({
     queryKey: ['doctor-revenue'],
     queryFn: () => api.get('/revenue/doctors').then(r => r.data)
+  });
+
+  const { data: history = [], isLoading: loadingHistory } = useQuery({
+    queryKey: ['settlement-history', selectedDoctor?.id],
+    queryFn: () => api.get(`/revenue/doctors/${selectedDoctor.id}/settlements`).then(r => r.data),
+    enabled: !!selectedDoctor && historyModal
   });
 
   const settleMutation = useMutation({
@@ -33,6 +40,7 @@ const DoctorRevenue = () => {
       setAmount('');
       setRemarks('');
       queryClient.invalidateQueries(['doctor-revenue']);
+      queryClient.invalidateQueries(['settlement-history', selectedDoctor?.id]);
     },
     onError: () => toast('error', 'Failed to record settlement')
   });
@@ -110,10 +118,10 @@ const DoctorRevenue = () => {
             <thead className="bg-stone-50/30 text-stone-400 text-[10px] uppercase font-black tracking-widest">
               <tr>
                 <th className="px-6 py-4 text-left">Doctor</th>
-                <th className="px-6 py-4 text-right">Consultation Earned</th>
+                <th className="px-6 py-4 text-right">Earned</th>
                 <th className="px-6 py-4 text-right">Already Paid</th>
                 <th className="px-6 py-4 text-right">Balance Owed</th>
-                <th className="px-6 py-4 text-center">Action</th>
+                <th className="px-6 py-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-50">
@@ -142,12 +150,21 @@ const DoctorRevenue = () => {
                     </span>
                   </td>
                   <td className="px-6 py-5 text-center">
-                    <button 
-                      onClick={() => { setSelectedDoctor(doc); setSettleModal(true); setAmount(doc.balance > 0 ? doc.balance : ''); }}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-stone-800 text-white rounded-xl text-xs font-black hover:bg-black transition-all active:scale-95"
-                    >
-                      <Send size={12} /> Settle
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      <button 
+                        onClick={() => { setSelectedDoctor(doc); setHistoryModal(true); }}
+                        className="p-2 text-stone-400 hover:text-lime-700 hover:bg-lime-50 rounded-lg transition-all"
+                        title="View History"
+                      >
+                        <History size={16} />
+                      </button>
+                      <button 
+                        onClick={() => { setSelectedDoctor(doc); setSettleModal(true); setAmount(doc.balance > 0 ? doc.balance : ''); }}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-stone-800 text-white rounded-xl text-xs font-black hover:bg-black transition-all active:scale-95"
+                      >
+                        <Send size={12} /> Settle
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -216,6 +233,66 @@ const DoctorRevenue = () => {
               >
                 {settleMutation.isPending ? 'Processing...' : 'Confirm Payout'}
               </button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {historyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm">
+          <Card className="w-full max-w-2xl p-0 overflow-hidden animate-in zoom-in-95">
+            <div className="px-8 py-6 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
+              <div>
+                <h3 className="text-xl font-black text-stone-800">Settlement History</h3>
+                <p className="text-xs text-stone-400 font-bold uppercase tracking-widest mt-1">Payments made to <span className="text-lime-700">{selectedDoctor?.name}</span></p>
+              </div>
+              <button onClick={() => setHistoryModal(false)} className="p-2 hover:bg-stone-100 rounded-xl transition-all">
+                <X size={20} className="text-stone-400" />
+              </button>
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto">
+              {loadingHistory ? (
+                <div className="p-20 space-y-4">
+                  <Skeleton className="h-12 rounded-xl" />
+                  <Skeleton className="h-12 rounded-xl" />
+                  <Skeleton className="h-12 rounded-xl" />
+                </div>
+              ) : history.length === 0 ? (
+                <div className="py-20">
+                  <EmptyState icon="💸" title="No settlements yet" description="You haven't recorded any payouts for this doctor." />
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-stone-50 text-[10px] uppercase font-black tracking-widest text-stone-400">
+                    <tr>
+                      <th className="px-8 py-4 text-left">Date</th>
+                      <th className="px-8 py-4 text-left">Method</th>
+                      <th className="px-8 py-4 text-right">Amount</th>
+                      <th className="px-8 py-4 text-left">Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-50">
+                    {history.map(item => (
+                      <tr key={item.id} className="hover:bg-stone-50/30 transition-colors">
+                        <td className="px-8 py-4 text-stone-500 font-medium">{formatDate(item.date)}</td>
+                        <td className="px-8 py-4">
+                          <span className="px-2 py-1 bg-stone-100 text-stone-600 rounded-md text-[10px] font-black uppercase tracking-wider">
+                            {item.method}
+                          </span>
+                        </td>
+                        <td className="px-8 py-4 text-right font-black text-stone-800">{formatCurrency(item.amount)}</td>
+                        <td className="px-8 py-4 text-stone-400 text-xs italic">{item.remarks || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="p-6 bg-stone-50/50 border-t border-stone-100 flex justify-end">
+              <Button onClick={() => setHistoryModal(false)} variant="secondary">Close History</Button>
             </div>
           </Card>
         </div>

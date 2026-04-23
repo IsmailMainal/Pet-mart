@@ -35,6 +35,14 @@ const Coupon = sequelize.define('Coupon', {
   isActive: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
+  },
+  usageCount: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+  },
+  maxUsage: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
   }
 });
 

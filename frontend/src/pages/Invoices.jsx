@@ -6,7 +6,7 @@ import {
   Button, Card, Modal, ConfirmModal,
   PageHeader, SearchBar, Badge, EmptyState, Skeleton
 } from '../components/UI';
-import { Plus, Printer, Package, ShoppingCart, Banknote, Smartphone, TrendingUp, FileText, AlertTriangle, Pencil } from 'lucide-react';
+import { Plus, Printer, Package, ShoppingCart, Banknote, Smartphone, TrendingUp, FileText, AlertTriangle, Pencil, Download } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import InvoiceForm from '../components/Invoice/InvoiceForm';
@@ -67,12 +67,26 @@ const Invoices = () => {
 
   const updateStatus = (id, status) => statusMutation.mutate({ id, status });
 
-  const filtered = (Array.isArray(invoices) ? invoices : []).filter(inv => {
-    const matchSearch = (inv.customerName || '').toLowerCase().includes(search.toLowerCase()) ||
-      (inv.invoiceNumber || '').toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'all' || inv.status === statusFilter;
-    return matchSearch && matchStatus;
-  }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const handleExport = async () => {
+    try {
+      toast('info', 'Generating export...');
+      const res = await api.get('/export/invoices', { 
+        params: { status: statusFilter, search },
+        responseType: 'blob' 
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `invoices_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      toast('error', 'Failed to generate export. Make sure the backend is updated.');
+    }
+  };
+
+  const filtered = Array.isArray(invoices) ? invoices : [];
 
   // KPI summary computed client-side from fetched data
   const invoicesArr = Array.isArray(invoices) ? invoices : [];
@@ -87,7 +101,12 @@ const Invoices = () => {
       <PageHeader
         title="Invoices & Inventory"
         description="Billing workflow with automatic stock management"
-        action={<Button onClick={() => { setEditInvoice(null); setIsModalOpen(true); }}><Plus size={16} /> Create Invoice</Button>}
+        action={
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExport}><Download size={16} /> Export CSV</Button>
+            <Button onClick={() => { setEditInvoice(null); setIsModalOpen(true); }}><Plus size={16} /> Create Invoice</Button>
+          </div>
+        }
       />
 
       {/* KPI Summary Bar */}

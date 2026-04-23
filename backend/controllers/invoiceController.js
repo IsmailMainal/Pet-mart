@@ -116,9 +116,17 @@ exports.createInvoice = catchAsync(async (req, res, next) => {
       }
     }
 
-    const calculatedTax = calculatedSubtotal * 0.05;
+    const calculatedTax = 0;
     let calculatedDiscount = parseFloat(invoiceData.discountAmount) || 0;
-    const finalTotal = Math.max(0, calculatedSubtotal + calculatedTax - calculatedDiscount);
+    const finalTotal = Math.max(0, calculatedSubtotal - calculatedDiscount);
+
+    // Increment coupon usage if provided
+    if (invoiceData.couponCode) {
+      await Coupon.update(
+        { usageCount: sequelize.literal('usageCount + 1') },
+        { where: { code: invoiceData.couponCode }, transaction: t }
+      );
+    }
 
     await invoice.update({
       subtotal: calculatedSubtotal,
@@ -191,9 +199,25 @@ exports.updateInvoice = catchAsync(async (req, res, next) => {
     }
 
     // 4. Recalculate financial totals
-    const calculatedTax = calculatedSubtotal * 0.05;
+    const calculatedTax = 0;
     const calculatedDiscount = parseFloat(updateData.discountAmount) || 0;
-    const finalTotal = Math.max(0, calculatedSubtotal + calculatedTax - calculatedDiscount);
+    const finalTotal = Math.max(0, calculatedSubtotal - calculatedDiscount);
+
+    // Handle coupon usage change
+    if (updateData.couponCode && updateData.couponCode !== invoice.couponCode) {
+      // Increment new coupon
+      await Coupon.update(
+        { usageCount: sequelize.literal('usageCount + 1') },
+        { where: { code: updateData.couponCode }, transaction: t }
+      );
+      // Decrement old coupon
+      if (invoice.couponCode) {
+        await Coupon.update(
+          { usageCount: sequelize.literal('usageCount - 1') },
+          { where: { code: invoice.couponCode }, transaction: t }
+        );
+      }
+    }
 
     await invoice.update({
       ...updateData,
