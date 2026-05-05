@@ -218,7 +218,7 @@ const Appointments = () => {
     queryKey: ['doctors'],
     queryFn: async () => {
       const res = await api.get('/doctors');
-      return res.data;
+      return res.data.doctors || res.data;
     }
   });
 

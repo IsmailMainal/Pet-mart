@@ -65,9 +65,9 @@ exports.createAppointment = catchAsync(async (req, res, next) => {
   });
 
   // Notify admins
-  await notifyAdmins('New Appointment Request', `New appointment booked by ${req.user.name} for ${req.body.date} at ${req.body.time}`, 'info', '/appointments');
+  await notifyAdmins('New Appointment Request', `New appointment booked by ${req.user.name} for ${req.body.date} at ${req.body.time}`, 'info', '/dashboard/appointments');
   // Notify customer
-  await notify(req.user.id, 'Appointment Booked', `Your appointment for ${req.body.date} at ${req.body.time} has been received and is pending confirmation.`, 'success', '/appointments');
+  await notify(req.user.id, 'Appointment Booked', `Your appointment for ${req.body.date} at ${req.body.time} has been received and is pending confirmation.`, 'success', '/dashboard/appointments');
 
   logActivity(req.user.id, 'create', 'Appointment', appointment.id, `Booked appointment for ${date} at ${time}`);
   res.status(201).json(appointment);
@@ -94,7 +94,13 @@ exports.updateAppointment = catchAsync(async (req, res, next) => {
     
     // Notify customer if status changed
     if (req.body.status && req.body.status !== oldStatus) {
-      await notify(appointment.userId, 'Appointment Updated', `Your appointment status has been updated to: ${req.body.status}`, 'info', '/appointments');
+      const title = req.body.status === 'Confirmed' ? 'Appointment Confirmed! ✅' : 'Appointment Updated';
+      const message = req.body.status === 'Confirmed' 
+        ? `Great news! Your appointment for ${appointment.date} at ${appointment.time} has been confirmed.`
+        : `Your appointment status has been updated to: ${req.body.status}`;
+      const type = req.body.status === 'Confirmed' ? 'success' : 'info';
+      
+      await notify(appointment.userId, title, message, type, '/dashboard/appointments');
     }
     
     logActivity(req.user.id, 'update', 'Appointment', appointment.id, `Updated appointment status to ${req.body.status || appointment.status}`);

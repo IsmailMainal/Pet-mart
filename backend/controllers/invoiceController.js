@@ -138,6 +138,12 @@ exports.createInvoice = catchAsync(async (req, res, next) => {
   });
 
   logActivity(req.user.id, 'create', 'Invoice', result.id, `Generated invoice ${result.invoiceNumber}`);
+  
+  // Notify customer
+  if (result.userId) {
+    await notify(result.userId, 'New Invoice Generated 📄', `A new invoice ${result.invoiceNumber} for $${result.total} has been generated for you.`, 'info', '/dashboard/my-bills');
+  }
+
   const fullInvoice = await Invoice.findByPk(result.id, { include: [InvoiceItem] });
   res.status(201).json(fullInvoice);
 });

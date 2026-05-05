@@ -5,13 +5,15 @@ import {
   LayoutDashboard, ShoppingBag, Calendar, FileText,
   LogOut, Users, Menu, X, PawPrint, ChevronRight, Heart, Activity, Tag, Bell, Stethoscope, BarChart3, DollarSign
 } from 'lucide-react';
-import { useNotifications as useToastHistory } from './Toast';
+import { useNotifications as useToastHistory, useToast } from './Toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api, { getFileUrl } from '../api';
 
 const NotificationBell = () => {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [open, setOpen] = useState(false);
+  const [lastNotifiedId, setLastNotifiedId] = useState(null);
 
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications'],
@@ -21,6 +23,18 @@ const NotificationBell = () => {
     },
     refetchInterval: 30000 // Refetch every 30s
   });
+
+  // Show Toast for new unread notifications
+  React.useEffect(() => {
+    const unread = notifications.filter(n => !n.isRead);
+    if (unread.length > 0) {
+      const latest = unread[0]; // Assuming order is newest first
+      if (latest.id !== lastNotifiedId) {
+        toast(latest.type || 'info', latest.title, latest.message);
+        setLastNotifiedId(latest.id);
+      }
+    }
+  }, [notifications, lastNotifiedId, toast]);
 
   const markReadMutation = useMutation({
     mutationFn: (id) => api.put(`/notifications/${id}/read`),
@@ -87,9 +101,17 @@ const NotificationBell = () => {
               ) : (
                 notificationsArr.map((n, i) => (
                   <div key={n.id} 
-                    onClick={() => !n.isRead && markReadMutation.mutate(n.id)}
+                    onClick={() => {
+                      if (!n.isRead) markReadMutation.mutate(n.id);
+                      if (n.link) navigate(n.link);
+                      setOpen(false);
+                    }}
                     className={`px-4 py-3 flex gap-3 hover:bg-stone-50 transition-colors cursor-pointer ${!n.isRead ? 'bg-lime-50/30' : ''} ${i !== notificationsArr.length - 1 ? 'border-b border-stone-50' : ''}`}>
-                    <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${!n.isRead ? 'bg-lime-500' : 'bg-stone-200'}`} />
+                    <div className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 
+                      ${!n.isRead 
+                        ? (n.type === 'success' ? 'bg-emerald-500' : n.type === 'error' ? 'bg-red-500' : n.type === 'warning' ? 'bg-amber-500' : 'bg-lime-500') 
+                        : 'bg-stone-200'}`} 
+                    />
                     <div className="flex-1">
                       <p className={`text-xs leading-tight ${!n.isRead ? 'font-bold text-stone-800' : 'text-stone-500'}`}>{n.title}</p>
                       {n.message && <p className="text-[11px] text-stone-400 mt-0.5 leading-snug">{n.message}</p>}
