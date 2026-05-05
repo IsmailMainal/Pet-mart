@@ -2,10 +2,14 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure uploads directory exists
+// Ensure uploads directory exists - wrapped in try-catch for read-only environments like Vercel
 const uploadDir = 'uploads';
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
+try {
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir);
+  }
+} catch (err) {
+  console.warn('⚠️ Could not create uploads directory. If you are on Vercel, this is expected if the directory is missing from the build.');
 }
 
 const storage = multer.diskStorage({

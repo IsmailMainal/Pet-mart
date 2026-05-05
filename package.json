@@ -1,0 +1,14 @@
+{
+  "name": "pet-shop",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend"
+  },
+  "dependencies": {
+    "mysql2": "^3.22.2"
+  }
+}
