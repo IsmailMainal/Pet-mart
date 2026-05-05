@@ -1,14 +1,25 @@
 {
-  "name": "pet-shop",
+  "name": "pet-shop-root",
   "version": "1.0.0",
   "private": true,
   "engines": {
     "node": "20.x"
   },
-  "scripts": {
-    "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend"
-  },
   "dependencies": {
-    "mysql2": "^3.22.2"
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "helmet": "^8.1.0",
+    "json2csv": "^6.0.0-alpha.2",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "multer": "^2.1.1",
+    "mysql2": "^3.22.2",
+    "sequelize": "^6.37.8",
+    "sqlite3": "^6.0.1",
+    "xss-clean": "^0.1.4",
+    "zod": "^4.3.6"
   }
 }
