@@ -24,8 +24,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const db = mysql.createPool({
   host: "localhost",       // Database host
   user: "root",            // Database username
-  password: "Admin@123",   // Database password
-  database: "shop",        // Database name
+  password: "YOUR DATABASE PASSWORD",   // Database password
+  database: "YOUR DATABASE NAME",        // Database name
   port: 3306,              // Database port (default MySQL port)
 });
 
