@@ -4,10 +4,9 @@
   "private": true,
   "main": "backend/server.js",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build"
-  },
-  "engines": {
-    "node": "20.x"
+    "dev": "start cmd /k \"npm run start:backend\" && start cmd /k \"npm run start:frontend\"",
+    "start:backend": "cd backend && npm start",
+    "start:frontend": "cd frontend && npm run dev"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

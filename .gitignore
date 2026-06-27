@@ -9,3 +9,6 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 frontend/node_modules/
 backend/node_modules/
+backend/petmart_db
+backend/petsmart_db
+backend/scratch_test_stats.js

@@ -1,19 +1,14 @@
 require('dotenv').config();
-require('mysql2'); // Explicitly require mysql2 for Vercel bundler
 const { Sequelize } = require('sequelize');
+const path = require('path');
 
 let sequelize;
 
-if (process.env.DATABASE_URL) {
-  sequelize = new Sequelize(process.env.DATABASE_URL, {
-    dialect: 'mysql',
-    logging: false,
-    dialectOptions: {
-      ssl: {
-        require: true,
-        rejectUnauthorized: false
-      }
-    }
+if (process.env.DB_DIALECT === 'sqlite') {
+  sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: path.join(__dirname, '..', process.env.DB_NAME || 'petsmart.sqlite'),
+    logging: false
   });
 } else {
   sequelize = new Sequelize(
@@ -24,13 +19,7 @@ if (process.env.DATABASE_URL) {
       host: process.env.DB_HOST,
       port: process.env.DB_PORT || 3306,
       dialect: 'mysql',
-      logging: false,
-      dialectOptions: {
-        ssl: {
-          require: true,
-          rejectUnauthorized: false
-        }
-      }
+      logging: false
     }
   );
 }
